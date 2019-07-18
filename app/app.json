@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "coffeApp",
+    "slug": "coffeApp",
+    "privacy": "public",
+    "sdkVersion": "33.0.0",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/coffee-leaf-beans.png",
+    "splash": {
+      "image": "./assets/coffee-leaf-beans.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#39b500"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    }
+  }
+}
