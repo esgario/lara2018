@@ -47,7 +47,7 @@ class CoffeeSegmentationLoader(data.Dataset):
         root='',
         split="train",
         is_transform=True,
-        img_size=(224, 224),
+        img_size=(512, 256),
         augmentations=None,
         img_norm=True,
         version="cityscapes",
@@ -208,11 +208,19 @@ class CoffeeSegmentationLoader(data.Dataset):
 # import ptsemseg.augmentations as aug
 if __name__ == '__main__':
     
-    from augmentations import Compose, RandomHorizontallyFlip, RandomRotate, Scale
+    from augmentations import Compose, RandomHorizontallyFlip, RandomVerticallyFlip, RandomRotate, RandomCrop, Scale
+    from augmentations import AdjustContrast, AdjustBrightness, AdjustSaturation
     import matplotlib.pyplot as plt
 
     bs = 4
-    augmentations = Compose([RandomRotate(10), RandomHorizontallyFlip(0.5)])
+    augmentations = Compose([Scale(512),
+                             RandomRotate(10),
+                             RandomHorizontallyFlip(0.5),
+                             RandomVerticallyFlip(0.5),
+                             AdjustContrast(0.25),
+                             AdjustBrightness(0.25),
+                             AdjustSaturation(0.25)])
+            
     dst = CoffeeSegmentationLoader(root='../dataset/', is_transform=True, augmentations=augmentations)
     trainloader = data.DataLoader(dst, batch_size=bs)
     
@@ -223,6 +231,7 @@ if __name__ == '__main__':
         f, axarr = plt.subplots(bs, 2)
     
         for j in range(bs):
+            print(imgs[j].shape)
             axarr[j][0].imshow(imgs[j])
             axarr[j][1].imshow(dst.decode_segmap(labels.numpy()[j]))
             

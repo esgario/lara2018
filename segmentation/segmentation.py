@@ -1,31 +1,18 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-@author: esgario
-"""
-
 import os
-import sys
 import numpy as np
 from tqdm import tqdm
 
 import torch
 import torch.nn as nn
-from torch import optim
-from torch.utils.data.sampler import WeightedRandomSampler
-from torch.nn.utils.clip_grad import clip_grad_norm_
-from torch.optim.lr_scheduler import MultiStepLR
 
 import utils.augmentations as aug
 from utils.customdatasets import CoffeeSegmentationLoader
 from utils.metric import scores
 from net_models import PSPNet
 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from sklearn.metrics import confusion_matrix
-
 import pickle
 import math
+import matplotlib.pyplot as plt
 
 ## Declare models
 models = {
@@ -78,20 +65,28 @@ def adjust_learning_rate(optimizer, epoch, opt):
 def data_loader(split='train', batch_size=4):
     # Augmentations
     if split == 'train':
-        augs = aug.Compose([aug.RandomRotate(10), aug.RandomHorizontallyFlip(0.5)])
+        augs = aug.Compose([aug.RandomRotate(10),
+                            aug.RandomHorizontallyFlip(0.5),
+                            aug.RandomVerticallyFlip(0.5),
+                            aug.AdjustContrast(0.25),
+                            aug.AdjustBrightness(0.25),
+                            aug.AdjustSaturation(0.25)])
         shuffle = True
     else:
         augs = None
         shuffle = False
 
-    dataset = CoffeeSegmentationLoader(root='dataset/', augmentations=augs, split=split, img_size=(64, 64))
+    dataset = CoffeeSegmentationLoader(root='dataset/', augmentations=augs, split=split)
     loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle)
     
-    class_weight = torch.tensor([1., 1., 1.])
+    class_weight = torch.tensor([1., 1., 2.])
     if torch.cuda.is_available():
         class_weight = class_weight.cuda()
 
-    return loader, class_weight, len(dataset)
+    if split != 'test':
+        return loader, class_weight, len(dataset)
+    else:
+        return loader, dataset
 
 def eval_metric(label_trues, label_preds, n_class):
     label_preds = torch.max(label_preds, 1)[1]
@@ -118,7 +113,7 @@ class SemanticSegmentation:
         model.train()
         train_metrics = { 'loss': [], 'miou': [], 'acc': [] }
         
-        train_iterator = tqdm(train_loader, total=n_images // batch_size + 1)            
+        train_iterator = tqdm(train_loader, total=n_images // batch_size + 1)
         for x, y, y_cls in train_iterator:
             
             # Loading images on gpu
@@ -167,8 +162,9 @@ class SemanticSegmentation:
         
         val_iterator = tqdm(val_loader, total=n_images // batch_size + 1)            
         
-        with torch.no_grad():
-            for x, y, y_cls in val_iterator:
+        
+        for x, y, y_cls in val_iterator:
+            with torch.no_grad():
                 # Loading images on gpu
                 if torch.cuda.is_available():
 	                x, y, y_cls = x.cuda(), y.cuda(), y_cls.cuda()
@@ -250,11 +246,11 @@ class SemanticSegmentation:
                 
             # Training
             train_metrics = self.train(train_loader, n_images_train, self.opt.batch_size, epoch, model, seg_criterion, cls_criterion, optimizer)
-            self.print_info(data_type='TRAIN', metrics=train_metrics, epoch=epoch, epochs=self.opt.epochs)
-
+#            self.print_info(data_type='TRAIN', metrics=train_metrics, epoch=epoch, epochs=self.opt.epochs)            
+            
             # Validation
             val_metrics = self.validation(val_loader, n_images_val, self.opt.batch_size, epoch, model, seg_criterion, cls_criterion)
-            self.print_info(data_type='VAL', metrics=val_metrics, epoch=epoch, epochs=self.opt.epochs)
+#            self.print_info(data_type='VAL', metrics=val_metrics, epoch=epoch, epochs=self.opt.epochs)
 
             # Adjust learning rate
             optimizer = adjust_learning_rate(optimizer, epoch, self.opt)
@@ -290,7 +286,7 @@ class SemanticSegmentation:
         os.makedirs(os.path.abspath('results'), exist_ok=True)
         
         # Dataset
-        test_loader, class_weights, n_images = data_loader('test', self.opt.batch_size)
+        test_loader, test_dataset = data_loader('test', self.opt.batch_size)
 
         # Loading model
         model = torch.load('net_weights/PSPNet.pth')
@@ -302,18 +298,38 @@ class SemanticSegmentation:
         test_metrics = { 'miou': [], 'acc': [] }
 
         with torch.no_grad():
-            for x, y, y_cls in test_loader:
+            for imgs, labels, cls in test_loader:
                 # Loading images on gpu
                 if torch.cuda.is_available():
-                    x, y, y_cls = x.cuda(), y.cuda(), y_cls.cuda()
+                    imgs, labels, cls = imgs.cuda(), labels.cuda(), cls.cuda()
         
                 # pass images through the network
-                out, out_cls = model(x)
+                out, out_cls = model(imgs)
     
                 # Compute metrics
-                metrics = eval_metric(y, out, 3)
+                metrics = eval_metric(labels, out, 3)
                 test_metrics['miou'].append(metrics[0])
-                test_metrics['acc'].append(metrics[1])            
+                test_metrics['acc'].append(metrics[1])
+                
+                # Plot
+                imgs = imgs.cpu().numpy()[:, ::-1, :, :]
+                imgs = np.transpose(imgs, [0,2,3,1])
+                
+                f, axarr = plt.subplots(self.opt.batch_size, 3, figsize=(16, 11.5))
+                
+                for j in range(self.opt.batch_size):
+                    print(imgs[j].shape)
+                    # Original image
+                    axarr[j][0].imshow(imgs[j])
+                    # True labels
+                    axarr[j][1].imshow(test_dataset.decode_segmap(labels.cpu().numpy()[j]))
+                    # Predicted labels
+                    label_pred = torch.max(out, 1)[1]
+                    axarr[j][2].imshow(test_dataset.decode_segmap(label_pred.cpu().numpy()[j]))
+                
+                plt.setp(plt.gcf().get_axes(), xticks=[], yticks=[])
+                plt.subplots_adjust(wspace=0.05, hspace=0.05)
+                plt.show()
 
         miou = np.mean(test_metrics['miou'])
         acc = np.mean(test_metrics['acc'])
@@ -321,7 +337,8 @@ class SemanticSegmentation:
         f = open('results/' + self.opt.output_filename + '.csv', 'w')
         f.write('miou,acc\n%.2f,%.2f\n' % (miou*100, acc*100))
         f.close()
-
+        
+        print('miou,acc\n%.2f,%.2f\n' % (miou*100, acc*100))
 
     def get_n_params(self):
         model = torch.load('net_weights/' + '/' + self.opt.output_filename + '.pth')
