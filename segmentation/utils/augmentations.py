@@ -2,10 +2,43 @@ import math
 import numbers
 import random
 import numpy as np
+import torch
 import torchvision.transforms.functional as tf
 
 from PIL import Image, ImageOps
 
+# ----------------------------- MIX UP
+
+
+def mixup_data(img, mask, cls, alpha=1.0):
+    '''Returns mixed inputs, pairs of targets, and lambda'''
+    if alpha > 0:
+        lam = np.random.beta(alpha, alpha)
+    else:
+        if np.random.rand() > 0.5:
+            lam = 1
+        else:
+            lam = 0.5
+
+    batch_size = img.size()[0]
+    
+    if torch.cuda.is_available():
+        index = torch.randperm(batch_size).cuda()
+    else:
+        index = torch.randperm(batch_size)
+
+    mixed_img = lam * img + (1 - lam) * img[index, :]
+    
+    mask_a, mask_b = mask, mask[index]
+    
+    cls_a, cls_b = cls, cls[index]
+    
+    return mixed_img, mask_a, mask_b, cls_a, cls_b, lam        
+
+def mixup_criterion(criterion, pred, y_a, y_b, lam):
+    return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
+
+# ----------------------------- STANDARD
 
 class Compose(object):
     def __init__(self, augmentations):

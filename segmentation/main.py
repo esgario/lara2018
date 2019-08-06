@@ -17,8 +17,9 @@ if __name__ == '__main__':
     parser.add_argument('--snapshot', type=str, default=None, help='Path to pretrained weights')
     parser.add_argument('--extractor', type=str, default='resnet50')
     parser.add_argument('--epochs', type=int, default=100)
-    # Output filename
-    parser.add_argument('--output_filename', type=str, default='pspnet_resnet50')
+    parser.add_argument('--data_augmentation', type=str, default='mixup')
+    # Filename
+    parser.add_argument('--filename', type=str, default='PSPNet')
     # Train and Validation -> True, Test -> False
     parser.add_argument("--train", type=bool, default=False)
     

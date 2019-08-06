@@ -6,13 +6,14 @@ import torch
 import torch.nn as nn
 
 import utils.augmentations as aug
-from utils.customdatasets import CoffeeSegmentationLoader
+from utils.customdatasets import SegmentationLoader
 from utils.metric import scores
 from net_models import PSPNet
 
 import pickle
 import math
 import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
 
 ## Declare models
 models = {
@@ -76,7 +77,7 @@ def data_loader(split='train', batch_size=4):
         augs = None
         shuffle = False
 
-    dataset = CoffeeSegmentationLoader(root='dataset/', augmentations=augs, split=split)
+    dataset = SegmentationLoader(root='dataset/', augmentations=augs, split=split)
     loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle)
     
     class_weight = torch.tensor([1., 1., 2.])
@@ -102,13 +103,35 @@ def eval_metric(label_trues, label_preds, n_class):
         score = scores(label_trues.cpu(), label_preds.cpu(), n_class)[0]
         return score['mean iou'], score['overall acc']
     
+def scatterPlot(x_true, x_pred, output_name, figsize=(6,4.5), marker_color='g', curve_color='k'):
+    reg = LinearRegression()
+    reg.fit(x_true[:,None], x_pred[:,None])
+    x_true_line = np.linspace(x_true.min(), x_true.max())
+    x_pred_line = reg.predict(x_true_line[:,None])
+    r2 = reg.score(x_true[:,None], x_pred[:,None])
+    
+    fig = plt.figure(figsize=figsize)
+    #ax = fig.gca()
+    
+    title = 'R²=:%.4f' % r2 
+    
+    plt.plot(x_true_line, x_pred_line, curve_color, alpha=0.7)
+    plt.plot(x_true, x_pred, 'o%s' % marker_color, markersize=6, alpha=0.7)
+    plt.grid()
+    plt.xlabel('True severity')
+    plt.ylabel('Predicted severity')
+    plt.title(title)
+    plt.show()
+    fig.savefig('results/' + output_name + '.png', bbox_inches='tight', dpi=200)
+    plt.close(fig)
+    
 # -------------------------------------------------------------------------------------- #
     
 class SemanticSegmentation:
     def __init__(self, parser):
         self.opt = parser.parse_args()
         
-    def train(self, train_loader, n_images, batch_size, epoch, model, seg_criterion, cls_criterion, optimizer):
+    def train(self, train_loader, n_images, batch_size, epoch, model, seg_criterion, cls_criterion, optimizer, data_augmentation='mixup'):
         
         model.train()
         train_metrics = { 'loss': [], 'miou': [], 'acc': [] }
@@ -119,12 +142,20 @@ class SemanticSegmentation:
             # Loading images on gpu
             if torch.cuda.is_available():
                 x, y, y_cls = x.cuda(), y.cuda(), y_cls.cuda()
+                
+            if data_augmentation == 'mixup':
+                x, y_a, y_b, y_cls_a, y_cls_b, lam = aug.mixup_data(x, y, y_cls)
             
             # Pass images through the network
             out, out_cls = model(x)
             
             # Compute error
-            seg_loss, cls_loss = seg_criterion(out, y), cls_criterion(out_cls, y_cls)
+            if data_augmentation == 'mixup':
+                seg_loss = aug.mixup_criterion(seg_criterion, out, y_a, y_b, lam)
+                cls_loss = aug.mixup_criterion(cls_criterion, out_cls, y_cls_a, y_cls_b, lam)
+            else:            
+                seg_loss, cls_loss = seg_criterion(out, y), cls_criterion(out_cls, y_cls)
+            
             loss = seg_loss + cls_loss
             
             # Clear gradients parameters
@@ -138,9 +169,15 @@ class SemanticSegmentation:
             
             # Metrics
             train_metrics['loss'].append(loss.data.cpu())
-            metrics = eval_metric(y, out, 3)
-            train_metrics['miou'].append(metrics[0])
-            train_metrics['acc'].append(metrics[1])
+            
+            if data_augmentation == 'mixup':
+                metrics_a, metrics_b = eval_metric(y_a, out, 3), eval_metric(y_b, out, 3) 
+                train_metrics['miou'].append(lam * metrics_a[0] + (1 - lam) * metrics_b[0])
+                train_metrics['acc'].append(lam * metrics_a[1] + (1 - lam) * metrics_b[1])
+            else:    
+                metrics = eval_metric(y, out, 3)
+                train_metrics['miou'].append(metrics[0])
+                train_metrics['acc'].append(metrics[1])
             
             status = '[%i] loss = %.4f avg = %.4f, miou = %.4f, acc = %.4f' % (epoch + 1,
                                                                               loss.data.cpu(),
@@ -195,16 +232,7 @@ class SemanticSegmentation:
         val_metrics['miou'] = np.mean(val_metrics['miou'])
         val_metrics['acc'] = np.mean(val_metrics['acc'])
         return val_metrics
-
-    def print_info(self, **kwargs):
-        data_type = kwargs.get('data_type')
-        metrics = kwargs.get('metrics')
-        epoch = kwargs.get('epoch')
-        epochs = kwargs.get('epochs')
-
-        print('[Epoch:%3d/%3d][%s][loss: %4.2f][mIoU: %5.2f][acc: %5.2f]' %
-                (epoch+1, epochs, data_type, metrics['loss'], metrics['miou'], metrics['acc']))
-        
+      
     
     def run_training(self):
         # Dataset
@@ -245,12 +273,28 @@ class SemanticSegmentation:
         for epoch in range(starting_epoch, starting_epoch + self.opt.epochs):
                 
             # Training
-            train_metrics = self.train(train_loader, n_images_train, self.opt.batch_size, epoch, model, seg_criterion, cls_criterion, optimizer)
-#            self.print_info(data_type='TRAIN', metrics=train_metrics, epoch=epoch, epochs=self.opt.epochs)            
+            train_metrics = self.train(
+                                    train_loader,
+                                    n_images_train,
+                                    self.opt.batch_size,
+                                    epoch,
+                                    model,
+                                    seg_criterion,
+                                    cls_criterion,
+                                    optimizer,
+                                    self.opt.data_augmentation
+                                    )
             
             # Validation
-            val_metrics = self.validation(val_loader, n_images_val, self.opt.batch_size, epoch, model, seg_criterion, cls_criterion)
-#            self.print_info(data_type='VAL', metrics=val_metrics, epoch=epoch, epochs=self.opt.epochs)
+            val_metrics = self.validation(
+                                    val_loader,
+                                    n_images_val,
+                                    self.opt.batch_size,
+                                    epoch,
+                                    model,
+                                    seg_criterion,
+                                    cls_criterion
+                                    )
 
             # Adjust learning rate
             optimizer = adjust_learning_rate(optimizer, epoch, self.opt)
@@ -270,12 +314,12 @@ class SemanticSegmentation:
                 best_loss = curr_loss
 
                 # Saving model
-                torch.save(model, 'net_weights/PSPNet.pth')
+                torch.save(model, 'net_weights/' + self.opt.filename + '.pth')
                 
                 print('model saved')
 
             # Saving log
-            fp = open('log/PSPNet.pkl', 'wb')
+            fp = open('log/'+ self.opt.filename +'.pkl', 'wb')
             pickle.dump(record, fp)
             fp.close()
 
@@ -289,13 +333,14 @@ class SemanticSegmentation:
         test_loader, test_dataset = data_loader('test', self.opt.batch_size)
 
         # Loading model
-        model = torch.load('net_weights/PSPNet.pth')
+        model = torch.load('net_weights/' + self.opt.filename + '.pth')
         model.cuda()
         
         # tell to pytorch that we are evaluating the model
         model.eval()
         
         test_metrics = { 'miou': [], 'acc': [] }
+        severity = { 'true': np.array([]), 'pred': np.array([]) }
 
         with torch.no_grad():
             for imgs, labels, cls in test_loader:
@@ -305,6 +350,7 @@ class SemanticSegmentation:
         
                 # pass images through the network
                 out, out_cls = model(imgs)
+                labels_pred = torch.max(out, 1)[1]
     
                 # Compute metrics
                 metrics = eval_metric(labels, out, 3)
@@ -315,17 +361,22 @@ class SemanticSegmentation:
                 imgs = imgs.cpu().numpy()[:, ::-1, :, :]
                 imgs = np.transpose(imgs, [0,2,3,1])
                 
-                f, axarr = plt.subplots(self.opt.batch_size, 3, figsize=(16, 11.5))
+                f, axarr = plt.subplots(len(imgs), 3, figsize=(16, 11.5))
                 
-                for j in range(self.opt.batch_size):
-                    print(imgs[j].shape)
+                for j in range(len(imgs)):
                     # Original image
                     axarr[j][0].imshow(imgs[j])
                     # True labels
                     axarr[j][1].imshow(test_dataset.decode_segmap(labels.cpu().numpy()[j]))
                     # Predicted labels
-                    label_pred = torch.max(out, 1)[1]
-                    axarr[j][2].imshow(test_dataset.decode_segmap(label_pred.cpu().numpy()[j]))
+                    axarr[j][2].imshow(test_dataset.decode_segmap(labels_pred.cpu().numpy()[j]))
+                
+                    # Compute severity
+                    aux = labels.cpu().numpy()[j]
+                    severity['true'] = np.append(severity['true'], (aux==2).sum() / ((aux==1).sum() + (aux==2).sum()))
+                    
+                    aux = labels_pred.cpu().numpy()[j]
+                    severity['pred'] = np.append(severity['pred'], (aux==2).sum() / ((aux==1).sum() + (aux==2).sum()))
                 
                 plt.setp(plt.gcf().get_axes(), xticks=[], yticks=[])
                 plt.subplots_adjust(wspace=0.05, hspace=0.05)
@@ -334,14 +385,16 @@ class SemanticSegmentation:
         miou = np.mean(test_metrics['miou'])
         acc = np.mean(test_metrics['acc'])
 
-        f = open('results/' + self.opt.output_filename + '.csv', 'w')
+        f = open('results/' + self.opt.filename + '.csv', 'w')
         f.write('miou,acc\n%.2f,%.2f\n' % (miou*100, acc*100))
         f.close()
         
         print('miou,acc\n%.2f,%.2f\n' % (miou*100, acc*100))
 
+        scatterPlot(severity['true'], severity['pred'], self.opt.filename)
+
     def get_n_params(self):
-        model = torch.load('net_weights/' + '/' + self.opt.output_filename + '.pth')
+        model = torch.load('net_weights/' + '/' + self.opt.filename + '.pth')
         pp=0
         for p in list(model.parameters()):
             nn=1

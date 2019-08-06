@@ -1,0 +1,12 @@
+{
+  "colors":[
+	[0,0,0],
+	[0,176,0],
+	[255,0,0]
+	],
+  "class_names":[
+	"background",
+	"leaf",
+	"symptom"
+	]
+}

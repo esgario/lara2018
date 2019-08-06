@@ -5,7 +5,7 @@ import imageio as m
 import cv2
 import pandas as pd
 from torch.utils import data
-from torchvision import transforms
+import json
 
 
 def recursive_glob(rootdir=".", suffix=""):
@@ -20,38 +20,24 @@ def recursive_glob(rootdir=".", suffix=""):
         if filename.endswith(suffix)
     ]
 
-class CoffeeSegmentationLoader(data.Dataset):
-    """cityscapesLoader
-    https://www.cityscapes-dataset.com
-    Data is derived from CityScapes, and can be downloaded from here:
-    https://www.cityscapes-dataset.com/downloads/
-    Many Thanks to @fvisin for the loader repo:
-    https://github.com/fvisin/dataset_loaders/blob/master/dataset_loaders/images/cityscapes.py
-    """
-
-    colors = [
-        [0, 0, 0],
-        [0, 176, 0],
-        [255, 0, 0],
-    ]
-
-    label_colours = dict(zip(range(3), colors))
+class SegmentationLoader(data.Dataset):
 
     mean_rgb = {
-        "pascal": [103.939, 116.779, 123.68],
-        "cityscapes": [0.0, 0.0, 0.0],
-    }  # pascal mean for PSPNet and ICNet pre-trained model
+        "standard": [0.0, 0.0, 0.0],
+    }
 
     def __init__(
         self,
-        root='',
+        root='dataset',
+        images_folder='images',
+        annotations_folder='annotations',
         split="train",
         is_transform=True,
         img_size=(512, 256),
         augmentations=None,
         img_norm=True,
-        version="cityscapes",
         test_mode=False,
+        version="standard"
     ):
         """__init__
         :param root:
@@ -65,26 +51,27 @@ class CoffeeSegmentationLoader(data.Dataset):
         self.is_transform = is_transform
         self.augmentations = augmentations
         self.img_norm = img_norm
-        self.n_classes = 3
         self.img_size = img_size if isinstance(img_size, tuple) else (img_size, img_size)
         self.mean = np.array(self.mean_rgb[version])
         self.files = {}
 
-        self.images_base = os.path.join(self.root, "leaf", self.split)
-        self.annotations_base = os.path.join(self.root, "annotations", self.split)
+        self.images_base = os.path.join(self.root, images_folder, self.split)
+        self.annotations_base = os.path.join(self.root, annotations_folder, self.split)
 
         self.files[split] = recursive_glob(rootdir=self.images_base, suffix=".jpg")
         
+        # Reading dataset info
         self.data = pd.read_csv(os.path.join(self.root, 'dataset.csv'))
-
-        self.valid_classes = [ 0, 1, 2 ]
-        self.class_names = [
-            "background",
-            "leaf",
-            "symptom",
-        ]
-
-        self.class_map = dict(zip(self.valid_classes, range(self.n_classes)))
+        with open(os.path.join(self.root, 'annotations-info.txt')) as json_file:
+            annotations_info = json.load(json_file)
+        
+        # colors
+        self.colors = annotations_info['colors']
+        self.label_colours = dict(zip(range(3), self.colors))
+        
+        # class names
+        self.class_names = annotations_info['class_names']
+        self.n_classes = len(self.class_names)
 
         if not self.files[split]:
             raise Exception("No files for split=[%s] found in %s" % (split, self.images_base))
@@ -169,24 +156,6 @@ class CoffeeSegmentationLoader(data.Dataset):
         rgb[:, :, 2] = b / 255.0
         return rgb
 
-#    def encode_segmap(self, mask):
-#        for _validc in self.valid_classes:
-#            mask[mask == _validc] = self.class_map[_validc]
-#        return mask
-    
-    def get_pascal_labels(self):
-        """Load the mapping that associates pascal classes with label colors
-        Returns:
-            np.ndarray with dimensions (21, 3)
-        """
-        return np.asarray(
-            [
-                [0, 0, 0],
-                [0, 176, 0],
-                [255, 0, 0],
-            ]
-        )
-    
     def encode_segmap(self, mask):
         """Encode segmentation label images as pascal classes
         Args:
@@ -198,7 +167,7 @@ class CoffeeSegmentationLoader(data.Dataset):
         """
         mask = mask.astype(int)
         label_mask = np.zeros((mask.shape[0], mask.shape[1]), dtype=np.int16)
-        for ii, label in enumerate(self.get_pascal_labels()):
+        for ii, label in enumerate(self.colors):
             label_mask[np.where(np.all(mask == label, axis=-1))[:2]] = ii
         label_mask = label_mask.astype(int)
         return label_mask
@@ -208,7 +177,7 @@ class CoffeeSegmentationLoader(data.Dataset):
 # import ptsemseg.augmentations as aug
 if __name__ == '__main__':
     
-    from augmentations import Compose, RandomHorizontallyFlip, RandomVerticallyFlip, RandomRotate, RandomCrop, Scale
+    from augmentations import Compose, RandomHorizontallyFlip, RandomVerticallyFlip, RandomRotate, Scale
     from augmentations import AdjustContrast, AdjustBrightness, AdjustSaturation
     import matplotlib.pyplot as plt
 
@@ -221,7 +190,7 @@ if __name__ == '__main__':
                              AdjustBrightness(0.25),
                              AdjustSaturation(0.25)])
             
-    dst = CoffeeSegmentationLoader(root='../dataset/', is_transform=True, augmentations=augmentations)
+    dst = SegmentationLoader(root='../dataset/', is_transform=True, augmentations=augmentations)
     trainloader = data.DataLoader(dst, batch_size=bs)
     
     for i, data_samples in enumerate(trainloader):
