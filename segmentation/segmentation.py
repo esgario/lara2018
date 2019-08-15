@@ -8,7 +8,7 @@ import torch.nn as nn
 import utils.augmentations as aug
 from utils.customdatasets import SegmentationLoader
 from utils.metric import scores
-from net_models import PSPNet
+from net_models import PSPNet, UNetWithResnet50Encoder
 
 import pickle
 import math
@@ -17,13 +17,14 @@ from sklearn.linear_model import LinearRegression
 
 ## Declare models
 models = {
-    'squeezenet': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='squeezenet'),
-    'densenet': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=1024, deep_features_size=512, backend='densenet'),
-    'resnet18': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='resnet18'),
-    'resnet34': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='resnet34'),
-    'resnet50': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet50'),
-    'resnet101': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet101'),
-    'resnet152': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet152')
+    'pspsqueezenet': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='squeezenet'),
+    'pspdensenet': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=1024, deep_features_size=512, backend='densenet'),
+    'pspresnet18': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='resnet18'),
+    'pspresnet34': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend='resnet34'),
+    'pspresnet50': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet50'),
+    'pspresnet101': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet101'),
+    'pspresnet152': lambda: PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet152'),
+    'unetresnet50': lambda: UNetWithResnet50Encoder(n_classes=3)
 }
 
 # Building network
@@ -120,6 +121,8 @@ def scatterPlot(x_true, x_pred, output_name, figsize=(6,4.5), marker_color='g', 
     plt.grid()
     plt.xlabel('True severity')
     plt.ylabel('Predicted severity')
+    plt.xlim(-0.01, 0.23)
+    plt.ylim(-0.01, 0.24)
     plt.title(title)
     plt.show()
     fig.savefig('results/' + output_name + '.png', bbox_inches='tight', dpi=200)
@@ -394,7 +397,7 @@ class SemanticSegmentation:
         scatterPlot(severity['true'], severity['pred'], self.opt.filename)
 
     def get_n_params(self):
-        model = torch.load('net_weights/' + '/' + self.opt.filename + '.pth')
+        model = torch.load('net_weights/' + self.opt.filename + '.pth')
         pp=0
         for p in list(model.parameters()):
             nn=1
