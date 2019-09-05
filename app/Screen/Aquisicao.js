@@ -8,19 +8,20 @@ import {
     TouchableOpacity,
     Text,
     Image,
-    Dimensions
+    Dimensions,
 } from 'react-native';
 
 import axios from 'axios';
 import { URL_API } from '../Utils/url_api';
 
-
+// Http request
 const urlGetNomeUsuario = `${URL_API}/usuario/search/findByNomeUsuario`;
-const urlPostUpload = `${URL_API}/imagem/upload`; // Salva a imagem no servidor
-const urlPost = `${URL_API}/imagem`; // Salva o modelo imagem, definido para o banco, no banco de dados
+const urlSalvaImagemServidor = `${URL_API}/imagem/upload`;
+const urlSalvaImagemDB = `${URL_API}/imagem`;
 
+// Largura tela
 const screenWidth = Math.round(Dimensions.get('window').width);
-const screenHeight = Math.round(Dimensions.get('window').height);
+
 
 class Aquisicao extends Component {
 
@@ -29,7 +30,7 @@ class Aquisicao extends Component {
         enviando: false,
         nomeUsuarioLogado: '',
         nomeCompletoLogado: '',
-        urlPut: '',
+        urlUsr: '',
         imagePath: '',
         latitude: null,
         longitude: null,
@@ -61,7 +62,7 @@ class Aquisicao extends Component {
 
         this.setState({nomeUsuarioLogado: nomeUsuario, image, latitude, longitude});
 
-    }
+    };
 
     /**
      * Método que retorna o usuário sendo passado seu nome do usuário.
@@ -72,8 +73,8 @@ class Aquisicao extends Component {
 
         let nomeUsuarioLogado = nomeUsuario;
         let nomeCompleto = '';
-        let validation = 0;
-        let urlPut = '';
+        let validation = false;
+        let urlUsr = '';
 
         await axios({
             method: 'get',
@@ -83,23 +84,18 @@ class Aquisicao extends Component {
             }
         })
         .then (function(response) {
-            // console.warn(response.data);
             console.log('NÃO DEU ERRO NO GET USUARIO');
-            urlPut = response.data._links.self.href;
+            urlUsr = response.data._links.self.href;
             nomeCompleto = response.data.nomeCompleto;
-            validation = 7;
+            validation = true;
         })
         .catch (function(error){
-            // console.warn(error);
             console.log('DEU ERRO NO GET USUARIO');
         })
 
-        if ( validation === 7 ) {
+        if (validation) {
 
-            this.setState({
-                nomeCompletoLogado: nomeCompleto,
-                urlPut: urlPut
-            });
+            this.setState({nomeCompletoLogado: nomeCompleto, urlUsr: urlUsr});
 
         } else {
 
@@ -118,175 +114,220 @@ class Aquisicao extends Component {
 
         await this.getUserByNomeUsuario(this.state.nomeUsuarioLogado);
 
-        let httpStatusServer = 0;
-        let httpStatusDb = 0; // Db - Database
-        let urlPut = this.state.urlPut;
+        let urlUsr = this.state.urlUsr;
         let nomeCompleto =  this.state.nomeCompletoLogado;
-        let nomeUsuario =  this.state.nomeUsuarioLogado;
-
         let data = new Date(); 
-                
-        // Ver se é mais interessante salavr como Date ou como uma String
-        // O problema que eu penso em relação a salvar como String é conseguir fazer o filtro depois
-        // Já em relação ao Date, no banco pelo menos, não informa as horas
-
-        // data = data.toString();
 
         if ( this.state.image !== null) {
 
-            this.setState({enviando: true});
-
-            let dataForm = new FormData();
-            let pathSalvaImg = nomeCompleto.split(' ').join('') + '-' 
-                    + urlPut.split('//').join('/').split('/').slice(3,5).join('_') + '-' 
+            // Gera o path para salvar as imagens
+            let imagePath = nomeCompleto.split(' ').join('') + '-' 
+                    + urlUsr.split('//').join('/').split('/').slice(3,5).join('_') + '-' 
                     + data.toString().split(' ').join('_').replace('(','').replace(')','') + '.png';
 
-            this.setState({imagePath: pathSalvaImg})
+            this.setState({enviando: true, imagePath});
 
-            dataForm.append('imagens', {
-                name: 'dataHoje',
-                type: 'image/jpg',
-                uri: this.state.image.uri
-                }
-            );
-            dataForm.append('nomeImg', pathSalvaImg)
-            dataForm.append('nomeApp', 'eFarmer')
+            let statusSalvaImagemServidor = false;
 
-            // O primeiro axios fará um post para salvar a imagem no servidor
+            // Salva imagem no servidor e pega o status do retorno
+            statusSalvaImagemServidor = await this.salvaImagemServidor();
 
-            await axios({
-                method: 'post',
-                url: urlPostUpload,
-                data: dataForm,
-                config: { 
-                    'Content-Type': 'multipart/form-data',
-                }
-            })
-            .then (response => {
-                console.log('NÃO DEU ERRO 1 AXIOS UPLOAD IMAGEM');
-                // console.warn(response.status);
-                // console.log('Http status: ',response.status);
-                httpStatusServer = response.status;                 
-            })
-            .catch (error => {
-                console.log('DEU ERRO 1 AXIOS UPLOAD IMAGEM');
-                // console.warn(error);
-                httpStatusServer = error.request.status;
-            })
+            if (statusSalvaImagemServidor) {
 
-            // O segundo axios fará um post para salvar a imagem no banco de dados
+                let statusSalvaImagemBanco = false;
+                let urlImg = '';
 
-            if ( httpStatusServer == 200 ) {
+                // Salva imagem no banco e pega o status do retorno
+                [statusSalvaImagemBanco, urlImg] = await this.salvaImagemBanco(data);
 
-                // Arredonda para 6 casas decimais
-                const latitude = (Math.round(1000000*parseFloat(this.state.latitude))/1000000).toString()
-                const longitude = (Math.round(1000000*parseFloat(this.state.longitude))/1000000).toString()
+                if ( statusSalvaImagemBanco && statusSalvaImagemServidor ) {
 
-                await axios({
-                    method: 'post',
-                    url: urlPost,
-                    data: {
-                        path: pathSalvaImg,
-                        segmentado: 'false',
-                        rotulo: 'nenhum',
-                        confiRotulo: 0.0,
-                        rotulo_2: 'nenhum',
-                        confiRotulo_2: 0.0,
-                        data: data,
-                        localizacao: latitude + ',' + longitude 
-                    }
-                })
-                .then (response => {
-                    console.log('NÃO DEU ERRO 2 AXIOS UPLOAD IMAGEM');
-                    // console.warn(response.status);
-                    // console.warn(response.data);
-                    httpStatusDb = response.status;
-                    urlImg = response.data._links.imagem.href;
-                })
-                .catch (error => {
-                    console.log('DEU ERRO 2 AXIOS UPLOAD IMAGEM');
-                    // console.warn(error);
-                    httpStatusDb = error.request.status;
-                })
-            }
+                    let image = this.state.image;
+        
+                    this.setState({ 
+                                    image: null,
+                                    enviando: false,
+                                    urlImg,
+                                    urlUsr
+                    });
+        
+                    let statusLinkaImagem = false;
+
+                    // Linka o usuário com a imagem
+                    statusLinkaImagem = await this.linkaImagem(urlImg, urlUsr);
+        
+                    if (statusLinkaImagem) {
+        
+                        var texto = 'Imagem enviada com sucesso.\n\n' +
+                                'Aperte "Ok" para processar os dados!\n\n';
+                        
+                        // Caso confirmado, vai para pagina de resultados
+                        Alert.alert(
+                            'Atenção',
+                            texto,
+                            [             
+                                {text: 'Ok', onPress: () => {
+                                    this.props.navigation.navigate('Resultado', {
+                                        nomeUsuario: this.state.nomeUsuarioLogado,
+                                        image,
+                                        imagePath: this.state.imagePath
+                                    })
+                                    }
+                                },
+                            ],
+                            { cancelable: false }
+                        );
+        
+                    } else {
+
+                        this.geraAlerta('ERRO 01: \n\nImagem não pode ser enviada.\n\nCaso o problema persista, favor entrar em contato com a equipe técnica.');
+    
+                        this.setState({ enviando: false });
+    
+                    }                     
+        
+                } else {
+
+                    this.geraAlerta('ERRO 02: \n\nImagem não pode ser enviada.\n\nCaso o problema persista, favor entrar em contato com a equipe técnica.');
+
+                    this.setState({ enviando: false });
+
+                } 
+
+            } else {
+
+                this.geraAlerta('ERRO 03: \n\nImagem não pode ser enviada.\n\nCaso o problema persista, favor entrar em contato com a equipe técnica.');
+
+                this.setState({ enviando: false });
+
+            } 
             
-        }
+        } 
+  
+    };
 
-        if ( httpStatusDb == 201 && httpStatusServer == 200 ) {
+    /**
+     * Método para salvar a imagem no servidor
+     * @author Pedro Biasutti
+     */
+    salvaImagemServidor = async () => {
 
-            let image = this.state.image;
+        let status = false;
+        let dataForm = new FormData();
 
-            this.setState({ 
-                            imgWidth: this.state.image.width,
-                            image: null,
-                            enviando: false,
-                            nomeCompletoLogado: nomeCompleto,
-                            nomeUsuarioLogado: nomeUsuario,
-                            urlImg: urlImg,
-                            urlPut: urlPut
-            });
-
-
-            httpStatusLinkaImagem = await this.linkaImagem(urlImg, urlPut);
-
-            if (httpStatusLinkaImagem === 204) {
-            // if (true) { // Serve apenas para testar no emulador
-
-                var texto = 'Imagem enviada com sucesso.\n\n' +
-                        'Aperte "Ok" para processar os dados!\n\n';
-
-                Alert.alert(
-                    'Atenção',
-                    texto,
-                    [             
-                        {text: 'Ok', onPress: () => {
-                            this.props.navigation.navigate('Resultado', {
-                                nomeUsuario: this.state.nomeUsuarioLogado,
-                                image: image,
-                                imagePath: this.state.imagePath
-                            })
-                            }
-                        },
-                    ],
-                    { cancelable: false }
-                );
-
+        dataForm.append('imagens', {
+            name: 'dataHoje',
+            type: 'image/jpg',
+            uri: this.state.image.uri
             }
+        );
+        dataForm.append('nomeImg', this.state.imagePath);
+        dataForm.append('nomeApp', 'eFarmer');
 
-            
+        await axios({
+            method: 'post',
+            url: urlSalvaImagemServidor,
+            data: dataForm,
+            config: { 
+                'Content-Type': 'multipart/form-data',
+            }
+        })
+        .then (response => {
+            console.log('NÃO DEU ERRO NO SALVAR IMAGEM SERVIDOR');
+            status = true;
+        })
+        .catch (error => {
+            console.log('DEU ERRO NO SALVAR IMAGEM SERVIDOR');
+        })
 
-        } else {
-            alert('Imagem não pode ser enviada.\n\nCaso o problema persista, favor entrar em contato com a equipe técnica.');
-        }  
+        return status;
+
+    };
+
+    /**
+     * Método para salvar imagem no banco de dados
+     * @author Pedro Biasutti
+     * @param data - data em que a imagem foi enviada ao app
+     */
+
+    salvaImagemBanco = async (data) => {
+
+        let status = false;
+
+        // Arredonda para 6 casas decimais
+        const latitude = (Math.round(1000000*parseFloat(this.state.latitude))/1000000).toString()
+        const longitude = (Math.round(1000000*parseFloat(this.state.longitude))/1000000).toString()
+
+        await axios({
+            method: 'post',
+            url: urlSalvaImagemDB,
+            data: {
+                path: this.state.imagePath,
+                rotulo: '',
+                confiRotulo: 0.0,
+                data: data,
+                localizacao: latitude + ',' + longitude 
+            }
+        })
+        .then (response => {
+            console.log('NÃO DEU ERRO SALAVR IMAGEM NO BANCO'); 
+            status = true;
+            urlImg = response.data._links.imagem.href;
+        })
+        .catch (error => {
+            console.log('DEU ERRO SALAVR IMAGEM NO BANCO');
+        })
+        
+        return [status, urlImg];
     };
 
     /**
      * Método para linkar a imagem com usuário correspondente.
      * @author Pedro Biasutti
      * @param urlImg - url que aponta para a imagem correspondente.
+     * @param urlUsr - url que aponta para o usuário da imagem correspondente.
     */
-   linkaImagem = async (urlImg, urlPut) => {
+   linkaImagem = async (urlImg, urlUsr) => {
+
+        let status = false;
 
         await axios({
             method: 'put',
             url: `${urlImg}/usuario`,
-            data: `${urlPut}`,
+            data: `${urlUsr}`,
             headers: { 
                 'Content-Type': 'text/uri-list',
             }
         })
         .then (function(response) {
             console.log('NÃO DEU ERRO LINKA IMAGEM');
-            // console.warn(response.status);
-            // console.log('Http status: ',response.status);
-            httpStatus = response.status; // 204
+            status = true;
         })
         .catch (function(error){
             console.log('DEU ERRO LINKA IMAGEM');
-            // console.warn(error);
         })
         
-        return httpStatus;
+        return status;
+
+    };
+
+    /**
+     * Método para exibir um alerta customizado
+     * @author Pedro Biasutti
+     */
+    geraAlerta = (textoMsg) => {
+
+        var texto = textoMsg
+
+        Alert.alert(
+            'Atenção',
+            texto,
+            [
+                {text: 'OK'},
+              ],
+            { cancelable: false }
+        );
+        
     };
     
     render () {
@@ -296,45 +337,46 @@ class Aquisicao extends Component {
 
         return (
 
-        <View style = {styles.viewContainer}>
+            <View style = {styles.viewContainer}>
 
                 {image &&
 
                     <Image 
                         source = {{ uri: image.uri }} 
-                        style = {styles.image} 
+                        style = {{width: '85%', height: '85%'}}
+                        resizeMode = 'contain' 
                     />
 
                 }
 
-                {enviando ? (
-                    <View style= {styles.activityIndicator}>
-                        <ActivityIndicator/>
-                    </View>
-                    
-                    ) : (
+            {enviando ? (
+                <View style= {styles.activityIndicator}>
+                    <ActivityIndicator/>
+                </View>
+                
+                ) : (
 
-                    image &&
-                    
-                    <View style = {styles.buttonContainer}>
+                image &&
+                
+                <View style = {styles.buttonContainer}>
 
-                        <TouchableOpacity 
-                            style = {styles.button}
-                            onPress = {this.uploadimage}
-                        >
-                            <Text style = {styles.buttonText}>Upload</Text>
-                        </TouchableOpacity>
-    
-                    </View>
-                )}
-                        
+                    <TouchableOpacity 
+                        style = {styles.button}
+                        onPress = {this.uploadimage}
+                    >
+                        <Text style = {styles.buttonText}>Upload</Text>
+                    </TouchableOpacity>
+
+                </View>
+            )}
+                    
             </View>
-
-            
-            
+          
         );
-    }
-}
+
+    };
+
+};
 
 export default Aquisicao;
 
@@ -350,8 +392,6 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         borderWidth: 1,
         borderColor: '#39b500',
-        marginHorizontal :5,
-        marginVertical: 20,
     }, 
     buttonText: {
         alignSelf: 'center',
@@ -359,10 +399,6 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: '600',
         paddingVertical: 10,
-    },
-    image: {
-        width: 0.95 * screenWidth,
-        height: 0.65 * screenHeight
     },
     circularButton: {
         alignItems: 'center',
@@ -381,10 +417,10 @@ const styles = StyleSheet.create({
         flexDirection: 'column',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 50
     },
     activityIndicator: {
-        marginBottom: 15,
+        marginBottom: '10%',
         transform: ([{ scaleX: 1.5 }, { scaleY: 1.5 }]),
     }
+    
 });

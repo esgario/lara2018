@@ -12,6 +12,7 @@ import Sobre from './Screen/Sobre';
 import Biblioteca from './Screen/Biblioteca';
 import Resultado from './Screen/Resultado';
 import Tratamento from './Screen/Tratamento';
+import Visualiza from './Screen/Visualiza';
 
 
 export default class App extends Component {
@@ -35,8 +36,7 @@ const AppStackNavigator = createStackNavigator({
   Biblioteca: Biblioteca,
   Resultado: Resultado,
   Tratamento: Tratamento,
-
-  
+  Visualiza: Visualiza
   },
   {
     initialRouteName: 'Home'

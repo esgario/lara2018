@@ -4,22 +4,48 @@ import {
     View,
     StyleSheet,
     Text, 
-    TouchableOpacity
-  } from 'react-native';
+    TouchableOpacity,
+    Alert,
+    Image,
+    ScrollView,
+    Dimensions
+} from 'react-native';
 
 import axios from 'axios';
 
 import { URL_API } from '../Utils/url_api';
 
-// const urlGetPythonLerImg = `http://192.168.0.160:8080/api/python/processarDados_eFarmer`;
+import Markdown, {getUniqueID} from 'react-native-markdown-renderer';
+
+// Http request
 const urlGetPythonLerImg = `${URL_API}/python/processarDados_eFarmer`;
+const urlPegaModeloResultado = `${URL_API}/resultado/pegaModeloResultado`;
+const urlGetImagem = `${URL_API}/imagem/baixar`;
 
-const urlGetImagem = `${URL_API}/imagem/search/findByPath`;
+// Dimensões da tela
+const screenWidth = Math.round(Dimensions.get('window').width);
+const screenHeigth = Math.round(Dimensions.get('window').height);
 
+// MarkDown rules
+const rules = {
+    heading1: (node, children, parent, styles) =>
+        <Text key={getUniqueID()} style={[styles.heading, styles.heading1]}>
+            [{children}]    
+        </Text>,
+    heading2: (node, children, parent, styles) =>
+        <Text key={getUniqueID()} style={[styles.heading, styles.heading2]}>
+            [{children}]
+        </Text>,
+    heading3: (node, children, parent, styles) =>
+        <Text key={getUniqueID()} style={[styles.heading, styles.heading3]}>
+            [{children}]
+        </Text>,
+};
 
 class Resultado extends Component {
 
     static navigationOptions = {
+
         title: 'Resultado',
         headerStyle: {
           backgroundColor: '#39b500',
@@ -29,21 +55,20 @@ class Resultado extends Component {
           fontWeight: 'bold',
           fontSize: 30
         },
+
     };
 
     state = {
+
         nomeUsuarioLogado: '',
         nomeCompletoLogado: '',
         image: '',
         imagePath: '',
-        diagnostico: '',
+        uriImg: '',
         resultado: false,
         textoPython: '',
-        rotulo: '',
-        rotulo_2: '',
-        confiRotulo: '',
-        confiRotulo_2: '',
-        urlPatch: ''
+        textoModelo: ''
+
     };
 
     /**
@@ -57,11 +82,6 @@ class Resultado extends Component {
         const nomeUsuario = navigation.getParam('nomeUsuario', 'erro nome usuario');
         const image = navigation.getParam('image', 'erro image');
         const imagePath = navigation.getParam('imagePath', 'erro imagePath');
-
-
-        // console.log('nomeUsuario', nomeUsuario);
-        // console.log('image', image);
-        // console.log('imagePath', imagePath);
 
         this.setState({
             nomeUsuarioLogado: nomeUsuario,
@@ -82,7 +102,7 @@ class Resultado extends Component {
 
         let file = imagemPath;
 
-        let dataStr = '';
+        let resp = '';
 
         await axios({
             method: 'get',
@@ -93,84 +113,197 @@ class Resultado extends Component {
         })
         .then (function(response) {
             console.log('NÃO DEU ERRO PROCESSAR DADOS');
-            // console.warn(response.status);
-            // console.warn(response.data);
-            dataStr = response.data;
-
+            resp = response.data;
         })
         .catch (function(error){
-            console.log('DEU ERRO PROCESSAR DADOS');
-            // console.warn(error);
-            // console.warn(error.request.status);            
+            console.log('DEU ERRO PROCESSAR DADOS');           
         })
 
-        if ( dataStr !== '') {
+        if ( resp !== 'error') {
 
-            var texto = dataStr;
+            outImgPath = this.state.imagePath.replace('.png','_output.png');
+            uriImg = `${urlGetImagem}?nomeImg=${outImgPath}&nomeApp=eFarmer`
 
-            console.log('texto', texto);
-
-            this.setState({resultado: true, textoPython: texto});
+            this.setState({uriImg});
+            
+            this.analizaResposta(resp);
 
         } else {
 
             console.log('DEU ERRO NO PYTHON');
 
         }
+
     };
 
+    /**
+     * Método para pegar o retorno do codigo que processas o dados e analizar para os 3 tipos de respostas
+     * @author Pedro Biasutti
+     * @param resp - resposta
+     */
+    analizaResposta = async (resposta) => {
+
+        resp = resposta;
+        resp = resp.split('\n');
+        nomeApp = 'eFarmer';
+
+        // Pega layout do resultado
+        modeloResp = await this.pegaModeloResultado(nomeApp);
+        aux = modeloResp.split('\n');
+        aux = aux[aux.length - 1];
+
+        if ( (resp.length - 1) < 2 ) {
+
+            // Quebra a resposta entre seus itens (numero da lesão, diagnóstico, probabilidade)
+            lesaoInfo = resp[0].split(',');
+
+            // Da o replace para colocar os dados reais
+            modeloResp = modeloResp.replace('%num', lesaoInfo[0]).replace('%diag', lesaoInfo[1]).replace('%prob', lesaoInfo[2]);
+
+        } else {
+
+            // Aumenta o layout de acordo com a qtd de lesão
+            for (x = 0; x< (resp.length - 2); x++) {
+
+                // Quebra a resposta entre seus itens (numero da lesão, diagnóstico, probabilidade)
+                lesaoInfo1 = resp[x].split(',');
+                lesaoInfo2 = resp[x+1].split(',');
+
+                // Da o replace para colocar os dados reais
+                modeloResp = modeloResp.replace('%num', lesaoInfo1[0]).replace('%diag', lesaoInfo1[1]).replace('%prob', lesaoInfo1[2])
+                            + '\n' + 
+                            aux.replace('%num', lesaoInfo2[0]).replace('%diag', lesaoInfo2[1]).replace('%prob', lesaoInfo2[2]);
+
+            }
+
+        }
+
+        this.setState({resultado: true, textoModelo: modeloResp});
+
+    };
+
+    /**
+     * Método para pegar o estilo MarkDown do resultado correspondente a quantidade de parametros de saida do processa dados python
+     * @author Pedro Biasutti
+     */
+    pegaModeloResultado = async (nomeApp) => {
+
+        let modeloResp = '';
+
+        await axios({
+            method: 'get',
+            url: urlPegaModeloResultado,
+            params: {
+                nomeApp: nomeApp,
+            }
+        })
+        .then (function(response) {
+            console.log('NÃO DEU ERRO PEGA MODELO RESULTADO');
+            modeloResp = response.data;
+
+        })
+        .catch (function(error){
+            console.log('DEU ERRO PEGA MODELO RESULTADO');
+        })
+
+        return modeloResp;
+
+    };
+
+    /**
+     * Método para exibir um alerta customizado
+     * @author Pedro Biasutti
+     */
+    geraAlerta = (textoMsg) => {
+
+        var texto = textoMsg
+
+        Alert.alert(
+            'Atenção',
+            texto,
+            [
+                {text: 'OK'},
+              ],
+            { cancelable: false }
+        );
+        
+    };
 
     render () {
 
+        let { resultado } = this.state;
+
         return (
 
-            <View style = {styles.viewContainer}>
+            <View style = {styles.resultadoContainer}>
 
-                {this.state.resultado && 
+                {resultado ? 
+                
+                    (
+                        <ScrollView>
 
-                    <View>
+                            <View style = {styles.resultadoContainer}>
 
-                        <Text style = {styles.text}>
-                            {this.state.textoPython}
-                        </Text>
+                                <View style = {styles.imageView}>
 
-                        <View>
-                            {/* <StyledButton onPress = {() => { this.props.navigation.navigate('Menu') }}>
-                                Menu
-                            </StyledButton> */}
+                                    <Image
+                                        source = {{uri: this.state.uriImg}}
+                                        resizeMode = 'contain'
+                                        style = {styles.image}  
+                                    />
 
-                            <TouchableOpacity 
-                                style = {styles.button}
-                                onPress = {() => { this.props.navigation.navigate('Menu') }}
-                            >
-                                <Text style = {styles.textButton}>Menu</Text>
-                            </TouchableOpacity>
+                                </View>
+
+                                <View style = {styles.markdown}>
+
+                                    <ScrollView>
+
+                                        <Markdown rules={rules}>{this.state.textoModelo}</Markdown>
+
+                                    </ScrollView>
+
+                                </View>
+
+                                <TouchableOpacity
+                                    style = {styles.button}
+                                    onPress = {() => { this.props.navigation.navigate('Menu') }}
+                                >
+
+                                    <Text style = {styles.textButton}>Menu</Text>
+
+                                </TouchableOpacity>
+
+                            </View>
+
+                        </ScrollView>                            
+
+                    ) : (
+
+                        <View style = {styles.activity}>
+
+                            <ActivityIndicator/>
 
                         </View>
 
-                    </View>
-
-                }   
-
-                {!this.state.resultado &&
-
-                    <View style = {styles.activity}>
-                        <ActivityIndicator/>
-                    </View>
+                    )
 
                 }
 
             </View>
-            
+
         );
-    }
-}
+
+    };
+    
+};
 
 export default Resultado;
 
 const styles = StyleSheet.create({ 
 
     resultadoContainer: {
+        flex: 1,
+        flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -180,14 +313,11 @@ const styles = StyleSheet.create({
         marginBottom: '10%'
     },
     activity: {
-        alignItems: 'center',
-        transform: ([{ scaleX: 2.5 }, { scaleY: 2.5 }]),
-    },
-    viewContainer: {
         flex: 1,
         flexDirection: 'column',
-        justifyContent: 'space-around',
+        justifyContent: 'center',
         alignItems: 'center',
+        transform: ([{ scaleX: 2.5 }, { scaleY: 2.5 }]),
     },
     button: {
         alignSelf: 'stretch',
@@ -204,6 +334,20 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: 'white',
         paddingVertical: 10
+    },
+    markdown:{
+        flexDirection: 'row',
+        marginVertical: 10,
+        paddingHorizontal: 10,
+        height: 0.30 * screenHeigth,
+    },
+    image: {
+        width: 0.9 * screenWidth,
+        height: 0.9 * screenWidth,
+    },
+    imageView: {
+        marginVertical: 10
     }
+    
 });
 

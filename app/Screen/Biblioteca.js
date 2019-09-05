@@ -20,16 +20,13 @@ import { URL_API } from '../Utils/url_api';
 import { GestureHandler } from 'expo';
 const { Swipeable } = GestureHandler;
 
-// const urlGetNomeUsuario = 'http://192.168.0.160:8080/api/usuario/search/findByNomeUsuario';
-// const urlGetImagem = 'http://192.168.0.160:8080/api/imagem/baixar';
-// const urlGetImagemByPath = 'http://192.168.0.160:8080/api/imagem/search/findByPath';
-
+// Http request
 const urlGetNomeUsuario = `${URL_API}/usuario/search/findByNomeUsuario`;
 const urlGetImagem = `${URL_API}/imagem/baixar`;
 const urlGetImagemByPath = `${URL_API}/imagem/search/findByPath`;
 
+// Largura tela
 const screenWidth = Math.round(Dimensions.get('window').width);
-const screenHeight = Math.round(Dimensions.get('window').height);
 
 class Biblioteca extends Component {
 
@@ -44,7 +41,7 @@ class Biblioteca extends Component {
         uriImagemModal: '',
         imagensDisplay: [],
         imagenSizeDisplay: 4, // Controla quantas imagens devem ser exiidas por vez
-        imagemIndexDisplay: 0 // Controla o index das imagens exibidas
+        imagemIndexDisplay: 0, // Controla o index das imagens exibidas
     };
 
     static navigationOptions = {
@@ -71,8 +68,10 @@ class Biblioteca extends Component {
         this.setState({nomeUsuarioLogado: nomeUsuario});
 
         this.getUserByNomeUsuario(nomeUsuario);
+
+        console.log('nomeUsuario',nomeUsuario);
  
-    }
+    };
 
     /**
      * Método que retorna o usuário sendo passado seu nome do usuário.
@@ -93,14 +92,12 @@ class Biblioteca extends Component {
             }
         })
         .then (function(response) {
-            // console.warn(response.data);
             data = response.data
             urlUser = response.data._links.self.href;
             validation = 7;
             console.log('NÃO DEU ERRO NO GET USUARIO');
         })
         .catch (function(error){
-            // console.warn(error);
             console.log('DEU ERRO NO GET USUARIO');
         })
 
@@ -150,9 +147,7 @@ class Biblioteca extends Component {
                     { cancelable: false }
                 );
 
-            }
-
-            
+            } 
 
         } else {
 
@@ -267,13 +262,13 @@ class Biblioteca extends Component {
 
             } else {
 
-                alert('Ocorreu um erro. \n\n Tente novamente, caso o erro persista contate a equipe de suporte.');
+                alert('ERRO 01:\n\nA imagem não pode ser deletada. \n\n Tente novamente, caso o erro persista contate a equipe de suporte.');
     
             }
 
         } else {
 
-            alert('Ocorreu um erro. \n\n Tente novamente, caso o erro persista contate a equipe de suporte.');
+            alert('ERRO 02:\n\nA imagem não pode ser deletada. \n\n Tente novamente, caso o erro persista contate a equipe de suporte.');
 
         }
 
@@ -309,52 +304,57 @@ class Biblioteca extends Component {
      * @author Pedro Biasutti
      */
     renderItem = ({item}) => (
+
         <Swipeable renderRightActions = {() => this.RightActions(item.path)}>
-            <View style = {styles.listContainer}>
-            
-                <View style = {styles.listSubContainer}>
 
-                    <View>
-                        <TouchableOpacity 
-                            onPress = {() => this.setState({ 
-                                exibeImagem: true,
-                                uriImagemModal: `${urlGetImagem}?nomeImg=${item.path}&nomeApp=eFarmer`
-                                }
-                            )}
-                        >
-                            <Image
-                                style = {styles.imageListItSelf}
-                                source = {{uri: `${urlGetImagem}?nomeImg=${item.path}&nomeApp=eFarmer`}}
-                            />
+            <View style = {styles.listContainer}>               
 
-                        </TouchableOpacity>                        
+                <TouchableOpacity
+                    onPress = {() => this.props.navigation.navigate('Visualiza', {imgPath: item.path})}
+                >
+                    <View style = {styles.listSubContainer}>
+
+                        <View>
+                            <TouchableOpacity 
+                                onPress = {() => this.setState({ 
+                                    exibeImagem: true,
+                                    uriImagemModal: `${urlGetImagem}?nomeImg=${item.path}&nomeApp=eFarmer`
+                                    }
+                                )}
+                            >
+                                <Image
+                                    style = {styles.imageListItSelf}
+                                    source = {{uri: `${urlGetImagem}?nomeImg=${item.path}&nomeApp=eFarmer&largura=100&altura=100`}}
+                                />
+
+                            </TouchableOpacity>                        
+                        </View>
+
+                        <View>
+
+                            <View style = {styles.imageTextContainer}>
+                                <Text style = {styles.imageTextTitle}>Data: </Text>
+                                <Text style = {styles.imageTextDescription}>{item.data}</Text>   
+                            </View>
+                            <View style = {styles.imageTextContainer}>
+                                <Text style = {styles.imageTextTitle}>Latitude: </Text>
+                                <Text style = {styles.imageTextDescription}>{item.localizacao.split(',')[0]}</Text>   
+                            </View>
+                            <View style = {styles.imageTextContainer}>
+                                <Text style = {styles.imageTextTitle}>Longitude: </Text>
+                                <Text style = {styles.imageTextDescription}>{item.localizacao.split(',')[1]}</Text>   
+                            </View>
+
+                        </View>
+
                     </View>
 
-                    <View>
+                </TouchableOpacity>
 
-                        <View style = {styles.imageTextContainer}>
-                            <Text style = {styles.imageTextTitle}>Data: </Text>
-                            <Text style = {styles.imageTextDescription}>{item.data}</Text>   
-                        </View>
-                        <View style = {styles.imageTextContainer}>
-                            <Text style = {styles.imageTextTitle}>Local: </Text>
-                            <Text style = {styles.imageTextDescription}>{item.localizacao}</Text>   
-                        </View>
-                        <View style = {styles.imageTextContainer}>
-                            <Text style = {styles.imageTextTitle}>Rótulo: </Text>
-                            <Text style = {styles.imageTextDescription}>{item.rotulo}</Text>   
-                        </View>
-                        <View style = {styles.imageTextContainer}>
-                            <Text style = {styles.imageTextTitle}>Confiança: </Text>
-                            <Text style = {styles.imageTextDescription}>{item.confRotulo}</Text>   
-                        </View>
-
-                    </View>
-
-                </View>
-            
             </View>
+
         </Swipeable>
+
     );
 
     /**
@@ -407,8 +407,9 @@ class Biblioteca extends Component {
                 <View style={styles.modalContainer}>
                     
                     <Image
-                        style = {styles.modalImage}
+                        style = {styles.imageModal} 
                         source = {{uri: this.state.uriImagemModal}}
+                        resizeMode = 'contain'
                     />
 
                     <TouchableOpacity
@@ -421,18 +422,18 @@ class Biblioteca extends Component {
                         <Text style = {styles.buttonText}>Fechar</Text>
 
                     </TouchableOpacity>
-
+                    
                 </View>
 
             </Modal>
 
         </View>
             
-
-            
         );
-    }
-}
+
+    };
+
+};
 
 export default Biblioteca;
 
@@ -508,12 +509,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    modalImage: {
-        width: 0.8 * screenWidth,
-        height: 0.8 * screenHeight
+    imageModal: {
+        width: '80%',
+        height: '80%',
     }
-});
 
-// console.log('\n\n\n\n\n%%%%%%%%%%%%%%%%%%%%%%%%');
-// console.log('data', data);
-// console.log('%%%%%%%%%%%%%%%%%%%%%%%%\n\n\n\n\n');
+});

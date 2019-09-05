@@ -72,6 +72,7 @@ class Menu extends Component {
             
             let result = await ImagePicker.launchCameraAsync({
                 allowsEditing: Platform.OS === 'ios' ? false : true,
+                // allowsEditing: true,
                 // aspect: [3, 3],
             });
         
@@ -137,7 +138,8 @@ class Menu extends Component {
                 <View style = {{marginBottom: -50}}>
                     <Image
                         style={{width: 0.5 * screenWidth, height: 0.3 * screenHeight}}
-                        source = {require('./../assets/coffee-leaf-beans.png')}
+                        source = {require('./../assets/logo02_sb.png')}
+                        resizeMode = 'contain'
                     />
                 </View>
 
@@ -179,7 +181,8 @@ class Menu extends Component {
 
                     <TouchableOpacity 
                         style={styles.sideButton}
-                        onPress = {() => this.props.navigation.navigate('LogOut')}
+                        // onPress = {() => this.props.navigation.navigate('LogOut')}
+                        onPress = {() => this.props.navigation.navigate('Home')}
                     >   
                         <Icon name = 'sign-out' size={30} color="#2b2c2d"/>
                     </TouchableOpacity>  

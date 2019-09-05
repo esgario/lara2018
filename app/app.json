@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "coffeApp",
-    "slug": "coffeApp",
+    "name": "E-Farmer",
+    "slug": "E-Farmer",
     "privacy": "public",
     "sdkVersion": "33.0.0",
     "platforms": [
@@ -11,11 +11,11 @@
     ],
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/coffee-leaf-beans.png",
+    "icon": "./assets/logo02.png",
     "splash": {
-      "image": "./assets/coffee-leaf-beans.png",
+      "image": "./assets/logo01.png",
       "resizeMode": "contain",
-      "backgroundColor": "#39b500"
+      "backgroundColor": "#ffffff"
     },
     "updates": {
       "fallbackToCacheTimeout": 0

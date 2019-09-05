@@ -18,11 +18,11 @@ import axios from 'axios';
 
 import { URL_API } from '../Utils/url_api';
 
-
+// Dimensões da tela
 const screenWidth = Math.round(Dimensions.get('window').width);
 const screenHeight = Math.round(Dimensions.get('window').height);
 
-// const urlGet = `http://192.168.0.160:8080/api/usuario/verificaLogin?`;
+// Http request
 const urlGet = `${URL_API}/usuario/verificaLogin?`;
 
 const validationSchema = yup.object().shape({
@@ -39,7 +39,7 @@ const validationSchema = yup.object().shape({
 class Home extends Component {
 
     static navigationOptions = {
-        title: 'e-Farmer',
+        title: 'Log in',
         headerStyle: {
           backgroundColor: '#39b500',
         },
@@ -47,7 +47,7 @@ class Home extends Component {
         headerTitleStyle: {
           fontWeight: 'bold',
           fontSize: 30
-        },
+        }
     };
 
     /**
@@ -69,15 +69,11 @@ class Home extends Component {
         })
         .then (function(response) {
             console.log('NÃO DEU ERRO CHECA NO BANCO');
-            // console.warn(response.status);
-            // console.log('Http status: ',response.status);
-            
             validation = response.data;
 
         })
         .catch (function(error){
-            console.log('DEU ERRO CHECA NO BANCO');
-            // console.warn(error.request.status);            
+            console.log('DEU ERRO CHECA NO BANCO');       
         })
 
         if ( validation === -1) {
@@ -91,10 +87,11 @@ class Home extends Component {
         }
 
         return validation;
-    }
 
+    };
 
     render () {
+
         return (
 
                 <ScrollView>
@@ -104,7 +101,8 @@ class Home extends Component {
                         <View style = {{alignItems: 'center'}}>
                             <Image
                                 style = {styles.image}
-                                source = {require('./../assets/coffee-leaf-beans.png')}
+                                source = {require('./../assets/logo01_sb.png')}
+                                resizeMode = 'contain'
                             />
                         </View>
                     </View>
@@ -114,7 +112,7 @@ class Home extends Component {
                         initialValues = {{
                             // nomeUsuario: '',
                             // senha: ''
-                            nomeUsuario: 'pedrocastro',
+                            nomeUsuario: 'pedrobiasutti',
                             senha: 'asdasd'
                         }}
 
@@ -143,7 +141,7 @@ class Home extends Component {
                                     <View style = {styles.containerStyle}>
                                         <Text style = {styles.labelStyle}>Usuario</Text>
                                         <TextInput
-                                            placeholder = 'johnsnow'
+                                            placeholder = 'usuario'
                                             style = {styles.inputStyle}
                                             onChangeText = {formikProps.handleChange('nomeUsuario')}
                                             onBlur = {formikProps.handleBlur('nomeUsuario')}
@@ -198,7 +196,9 @@ class Home extends Component {
                                 </Text>
 
                                     {formikProps.isSubmitting ? (
-                                        <ActivityIndicator/>
+                                        <View style = {styles.activity}>
+                                            <ActivityIndicator/>
+                                        </View>
                                         ) : (
                                         <View style = {{flexDirection: 'column', flex: 1, width: '50%'}}>
 
@@ -218,8 +218,7 @@ class Home extends Component {
                         </Formik>
 
                         <Text style = {[styles.hiperlink, {marginBottom: 20}]}
-                            // onPress = {() => this.props.navigation.navigate('Cadastro')}
-                            onPress = {() => this.props.navigation.navigate('HttpServer')}
+                            onPress = {() => this.props.navigation.navigate('Cadastro')}
                         >
                         Cadastro
                         </Text>
@@ -227,7 +226,8 @@ class Home extends Component {
                 </ScrollView>
         );
     }
-}
+    
+};
 
 export default Home;
 
@@ -277,9 +277,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignSelf: 'center',
         alignItems: 'center',
-        // borderWidth: 1,
-        // borderColor: 'black',
-        // borderRadius: 4,
         backgroundColor: '#f2f2f2',
         height: 50,
         marginVertical: 15,
@@ -295,6 +292,9 @@ const styles = StyleSheet.create({
     image: {
         width: 0.5 * screenWidth, 
         height: 0.3 * screenHeight
+    },
+    activity : {
+        marginTop: 10
     }
 });
 
