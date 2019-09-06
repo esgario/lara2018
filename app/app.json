@@ -11,7 +11,7 @@
     ],
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo02.png",
+    "icon": "./assets/app-icon.png",
     "splash": {
       "image": "./assets/logo01.png",
       "resizeMode": "contain",

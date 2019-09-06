@@ -1,10 +1,10 @@
 {
   "devToolsPort": 19002,
-  "expoServerPort": null,
-  "packagerPort": null,
-  "packagerPid": null,
-  "expoServerNgrokUrl": null,
-  "packagerNgrokUrl": null,
-  "ngrokPid": null,
+  "expoServerPort": 19000,
+  "packagerPort": 19001,
+  "packagerPid": 13473,
+  "expoServerNgrokUrl": "https://a9-9bk.pedrobiasutti.app.exp.direct",
+  "packagerNgrokUrl": "https://packager.a9-9bk.pedrobiasutti.app.exp.direct",
+  "ngrokPid": 13545,
   "webpackServerPort": null
 }
