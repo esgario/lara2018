@@ -10,18 +10,23 @@ import Aquisicao from './Screen/Aquisicao';
 import LogOut from './Screen/LogOut';
 import Sobre from './Screen/Sobre';
 import Biblioteca from './Screen/Biblioteca';
-import Resultado from './Screen/Resultado';
 import Tratamento from './Screen/Tratamento';
 import Visualiza from './Screen/Visualiza';
+import Resultado from './Screen/Resultado';
 
 
 export default class App extends Component {
 
   render() {
+
     return (
+
         <AppContainer/>
+
     );
+
   }
+  
 }
 
 const AppStackNavigator = createStackNavigator({
@@ -34,9 +39,9 @@ const AppStackNavigator = createStackNavigator({
   LogOut: LogOut,
   Sobre: Sobre,
   Biblioteca: Biblioteca,
-  Resultado: Resultado,
   Tratamento: Tratamento,
-  Visualiza: Visualiza
+  Visualiza: Visualiza,
+  Resultado: Resultado
   },
   {
     initialRouteName: 'Home'

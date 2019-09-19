@@ -22,6 +22,7 @@ const urlGetImagem = `${URL_API}/imagem/baixar`;
 const urlPegaModeloResultado = `${URL_API}/resultado/pegaModeloResultado`;
 const urlCriaRequi = `${URL_API}/python/inference`;
 const urlChecaResultado = `${URL_API}/python/result`;
+const urlGetNomeUsuario = `${URL_API}/usuario/search/findByNomeUsuario`;
 
 // Dimensões da tela
 const screenWidth = Math.round(Dimensions.get('window').width);
@@ -93,7 +94,49 @@ class Resultado extends Component {
 
         // this.processarDados(imagePath);
         this.criaRequisicao(imagePath);
+        // this.getUserByNomeUsuario(nomeUsuario);
         
+    };
+
+     /**
+     * Método que retorna o usuário sendo passado seu nome do usuário.
+     * @author Pedro Biasutti
+     * @param nomeUsuario - nome do usuário logado
+     */
+    getUserByNomeUsuario = async (nomeUsuario) => {
+
+        let nomeUsuarioLogado = nomeUsuario;
+        let nomeCompleto = '';
+        let validation = false;
+        let urlUsr = '';
+
+        await axios({
+            method: 'get',
+            url: urlGetNomeUsuario,
+            params: {
+                nomeUsuario: nomeUsuarioLogado,
+            }
+        })
+        .then (function(response) {
+            console.log('NÃO DEU ERRO NO GET USUARIO');
+            urlUsr = response.data._links.self.href;
+            nomeCompleto = response.data.nomeCompleto;
+            validation = true;
+        })
+        .catch (function(error){
+            console.log('DEU ERRO NO GET USUARIO');
+        })
+
+        if (validation) {
+
+            this.setState({nomeCompletoLogado: nomeCompleto, urlUsr: urlUsr});
+
+        } else {
+
+            alert('O nome do usuário não existe no banco de dados.');
+
+        }
+
     };
 
     /**
@@ -105,7 +148,7 @@ class Resultado extends Component {
 
         console.log(imagemPath);
 
-        let resp = 'error';
+        var resp = 'error';
         
         await axios({
             method: 'get',
@@ -116,11 +159,13 @@ class Resultado extends Component {
             }
         })
         .then (function(response) {
+            console.log(response.data);
             console.log('NÃO DEU ERRO CRIA REQUISIÇÃO');
             resp = response.data;
         })
         .catch (function(error){
-            console.log('DEU ERRO CRIA REQUISIÇÃO');           
+            console.log(error);
+            console.log('DEU ERRO CRIA REQUISIÇÃO');     
         })
 
         if ( resp !== 'error') {
