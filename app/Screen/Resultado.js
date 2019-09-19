@@ -18,9 +18,10 @@ import { URL_API } from '../Utils/url_api';
 import Markdown, {getUniqueID} from 'react-native-markdown-renderer';
 
 // Http request
-const urlGetPythonLerImg = `${URL_API}/python/processarDados_eFarmer`;
-const urlPegaModeloResultado = `${URL_API}/resultado/pegaModeloResultado`;
 const urlGetImagem = `${URL_API}/imagem/baixar`;
+const urlPegaModeloResultado = `${URL_API}/resultado/pegaModeloResultado`;
+const urlCriaRequi = `${URL_API}/python/inference`;
+const urlChecaResultado = `${URL_API}/python/result`;
 
 // Dimensões da tela
 const screenWidth = Math.round(Dimensions.get('window').width);
@@ -67,7 +68,8 @@ class Resultado extends Component {
         uriImg: '',
         resultado: false,
         textoPython: '',
-        textoModelo: ''
+        textoModelo: '',
+        result_status: ''
 
     };
 
@@ -89,8 +91,49 @@ class Resultado extends Component {
             imagePath: imagePath
         });
 
-        this.processarDados(imagePath);
+        // this.processarDados(imagePath);
+        this.criaRequisicao(imagePath);
         
+    };
+
+    /**
+     * Método para enviar os dados necessários para processar para que seja gerado um job_id
+     * @author Pedro Biasutti
+     * @param imagePath - path da imagem
+     */
+    criaRequisicao = async (imagemPath) => {
+
+        console.log(imagemPath);
+
+        let resp = 'error';
+        
+        await axios({
+            method: 'get',
+            url: urlCriaRequi,
+            params: {
+                path: imagemPath,
+                algoritmo: 'coffee'
+            }
+        })
+        .then (function(response) {
+            console.log('NÃO DEU ERRO CRIA REQUISIÇÃO');
+            resp = response.data;
+        })
+        .catch (function(error){
+            console.log('DEU ERRO CRIA REQUISIÇÃO');           
+        })
+
+        if ( resp !== 'error') {
+
+            console.log(resp);
+            this.gerenciaChecaResult(resp);
+
+        } else {
+
+            console.log('DEU ERRO RESPOSTA CRIA REQUISIÇÃO'); 
+
+        }
+
     };
 
     /**
@@ -98,41 +141,63 @@ class Resultado extends Component {
      * @author Pedro Biasutti
      * @param imagePath - path da imagem
      */
-    processarDados = async (imagemPath) => {
-
-        let file = imagemPath;
+    checaResultado = async (job_id) => {
 
         let resp = '';
 
         await axios({
             method: 'get',
-            url: urlGetPythonLerImg,
+            url: urlChecaResultado,
             params: {
-                path: file
+                job_id: job_id
             }
         })
         .then (function(response) {
-            console.log('NÃO DEU ERRO PROCESSAR DADOS');
+            console.log('NÃO DEU CHECA RESULTADO');
             resp = response.data;
         })
         .catch (function(error){
-            console.log('DEU ERRO PROCESSAR DADOS');           
+            console.log('DEU ERRO CHECA RESULTADO');           
         })
 
         if ( resp !== 'error') {
 
-            outImgPath = this.state.imagePath.replace('.png','_output.png');
-            uriImg = `${urlGetImagem}?nomeImg=${outImgPath}&nomeApp=eFarmer`
+            if (resp == 'processando') {
 
-            this.setState({uriImg});
-            
-            this.analizaResposta(resp);
+                this.setState({result_status: resp});
+
+            } else {
+
+                outImgPath = this.state.imagePath.replace('.png','_output.png');
+                uriImg = `${urlGetImagem}?nomeImg=${outImgPath}&nomeApp=eFarmer`
+
+                console.log('uriImg',uriImg);
+    
+                this.setState({result_status: 'completo', textoPython: resp});
+
+            }
 
         } else {
 
-            console.log('DEU ERRO NO PYTHON');
+            console.log('DEU ERRO RESPOSTA CHECA RESULTADO');   
 
         }
+
+    };
+
+    gerenciaChecaResult = async (job_id) => {
+        
+        let count = 0;
+        let result = this.state.textoPython;
+
+        while (count <5 && result == ''){
+
+            console.log(`Tentativa numero: ${count}`);
+            setTimeout(() => {this.checaResultado(job_id)}, 3000);
+
+        }
+        
+        this.analizaResposta(resp);
 
     };
 
@@ -177,6 +242,8 @@ class Resultado extends Component {
             }
 
         }
+
+        console.log(modeloResp);
 
         this.setState({resultado: true, textoModelo: modeloResp});
 

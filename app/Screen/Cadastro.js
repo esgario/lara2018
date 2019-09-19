@@ -12,12 +12,14 @@ import {
     ScrollView
   } from 'react-native';
 
+import { Formik } from 'formik';
+import axios from 'axios';
+import * as yup from 'yup';
+import * as Permissions from 'expo-permissions';
+
 import StyledButton from '../Style/Button';
 import { URL_API } from '../Utils/url_api';
-import { Formik } from 'formik';
-import * as yup from 'yup';
-import axios from 'axios';
-import { Permissions } from 'expo';
+
 
 // Http request
 const urlValidaNovosDados = `${URL_API}/usuario/validaNovosDados`;

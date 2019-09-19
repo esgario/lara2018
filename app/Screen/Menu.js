@@ -11,8 +11,6 @@ import {
 
 import Icon from 'react-native-vector-icons/FontAwesome';
 
-// import { Camera } from 'expo-camera';
-// import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import * as Permissions from 'expo-permissions';
 
@@ -36,9 +34,10 @@ class Menu extends Component {
     state = {
         nomeUsuarioLogado: '',
         image: null,
-        hasCameraPermission: null,
         latitude: null,
         longitude: null,
+        hasCameraPermission: null,
+        hasCameraAlbumPermission: null,
         hasLocationPermission: null
     };
 
@@ -63,7 +62,7 @@ class Menu extends Component {
         const { status } = await Permissions.askAsync(Permissions.CAMERA);
         this.setState({ hasCameraPermission: status === 'granted' });
 
-        const permission = await Permissions.getAsync(Permissions.CAMERA);
+        const permission = await Permissions.askAsync(Permissions.CAMERA);
         if (permission.status !== 'granted') {
 
         } else {
@@ -75,8 +74,6 @@ class Menu extends Component {
                 // allowsEditing: true,
                 // aspect: [3, 3],
             });
-        
-            // console.log(result);
         
             if (!result.cancelled) {
                 this.setState({ image: result });
@@ -95,6 +92,51 @@ class Menu extends Component {
                 longitude: this.state.longitude
             });
                 
+        }
+
+    };
+
+    /**
+     * Método para escolher uma imagem do álbum de fotos
+     * @author Pedro Biasutti
+     */
+    pickImage = async () => {
+
+        const { status } = await Permissions.askAsync(Permissions.CAMERA_ROLL);
+        this.setState({ hasCameraAlbumPermission: status === 'granted' });
+
+        const permission = await Permissions.askAsync(Permissions.CAMERA_ROLL);
+
+        if (permission.status !== 'granted') {
+
+        } else {
+
+            await this.pegaCoordenadas();
+
+            let result = await ImagePicker.launchImageLibraryAsync({
+                allowsEditing: Platform.OS === 'ios' ? false : true,
+                // allowsEditing: true,
+                // aspect: [5, 5],
+            });
+        
+            if (!result.cancelled) {
+                this.setState({ image: result });
+            }   
+
+        }
+
+        if (this.state.image !== null) {
+
+            let image = this.state.image;
+
+            this.setState({image: null});
+            this.props.navigation.navigate('Aquisicao',{ 
+                nomeUsuario: this.state.nomeUsuarioLogado,
+                image: image,
+                latitude: this.state.latitude,
+                longitude: this.state.longitude
+            });
+
         }
 
     };
@@ -132,10 +174,12 @@ class Menu extends Component {
     };
 
     render () {
-        return (
-            <View style = {{alignItems: 'center',  flex: 1, flexDirection: 'column', justifyContent: 'space-between'}}>
 
-                <View style = {{marginBottom: -50}}>
+        return (
+
+            <View style = {styles.menuContainer}>
+
+                <View style = {{marginBottom: -40, marginTop: -20}}>
                     <Image
                         style={{width: 0.5 * screenWidth, height: 0.3 * screenHeight}}
                         source = {require('./../assets/logo02_sb.png')}
@@ -143,18 +187,28 @@ class Menu extends Component {
                     />
                 </View>
 
-                <TouchableOpacity 
-                    style = {styles.circularButton}
-                    onPress = {() => this.takeimage()}
-                >
-                    <Icon name = 'camera' size={40} color="#2b2c2d"/>
-                </TouchableOpacity>
+                <View style = {styles.topButtonsContainer}>
 
-                <View style = {{flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '25%'}}>
+                    <TouchableOpacity 
+                        style = {styles.circularButton}
+                        onPress = {() => this.takeimage()}
+                    >
+                        <Icon name = 'camera' size={42} color="#2b2c2d"/>
+                    </TouchableOpacity>
+
+                    <Text style = {[styles.hiperlink, {marginBottom: 20}]}
+                        onPress={() => this.pickImage()}
+                    >
+                      Selecione do álbum
+                    </Text>
+
+                </View>
+
+                <View style = {styles.centerButtonsContainer}>
 
                     <TouchableOpacity 
                         style = {styles.button}
-                        onPress = {() => this.props.navigation.navigate('Biblioteca', {nomeUsuario: this.state.nomeUsuarioLogado})}                        
+                        onPress = {() => this.props.navigation.navigate('Biblioteca', {nomeUsuario: this.state.nomeUsuarioLogado})}                         
                     >
                         <Icon  flex = {1} paddingLeft = {20} paddingRight = {20} name = 'list-ul' size={40} color="white"/>
                         <Text style = {styles.text}>Biblioteca</Text>
@@ -170,7 +224,7 @@ class Menu extends Component {
 
                 </View>
 
-                <View style = {{flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
+                <View style = {styles.endButtonsContainer}>
 
                     <TouchableOpacity 
                         style={styles.sideButton}
@@ -181,7 +235,6 @@ class Menu extends Component {
 
                     <TouchableOpacity 
                         style={styles.sideButton}
-                        // onPress = {() => this.props.navigation.navigate('LogOut')}
                         onPress = {() => this.props.navigation.navigate('Home')}
                     >   
                         <Icon name = 'sign-out' size={30} color="#2b2c2d"/>
@@ -191,8 +244,10 @@ class Menu extends Component {
 
             </View>
         );
-    }
-}
+
+    };
+
+};
 
 export default Menu;
 
@@ -201,7 +256,7 @@ const fontStyle = Platform.OS === 'ios' ? 'Arial Hebrew' : 'serif';
 const styles = StyleSheet.create({
     headers: { 
       fontFamily: fontStyle,
-      color: '#39b500',
+      color: '#33ccff',
       fontWeight: 'bold',
       fontSize: 28,
       marginTop: 20,
@@ -225,13 +280,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#e2e2e2',
-        height: screenWidth * 0.4,
-        width: screenWidth * 0.4,
-        borderRadius: screenWidth * 0.4,
+        height: screenWidth * 0.45,
+        width: screenWidth * 0.45,
+        borderRadius: screenWidth * 0.45,
         borderWidth: 1,
         borderColor: '#d2d2d2',
         marginHorizontal: 5,
-        paddingBottom: 5,
+
     },
     sideButton: {
         flex: 1,
@@ -254,6 +309,33 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         paddingVertical: 10,
         paddingHorizontal: 20,
-    }
+    },
+    menuContainer: {
+        flex: 1,
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    topButtonsContainer: {
+        marginVertical: 10,
+        alignItems: 'center'
+    },
+    centerButtonsContainer: {
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '25%'
+    },
+    endButtonsContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    hiperlink: {
+        alignSelf: 'center',
+        fontSize: 20,
+        textDecorationLine: 'underline', 
+        color: '#39b500',
+        marginTop: 10 
+    },
 });
-

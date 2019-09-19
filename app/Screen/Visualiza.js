@@ -72,10 +72,17 @@ export default Visualiza;
 
 const styles = StyleSheet.create({ 
 
+    visualizaContainer: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '90%',
+        height: '90%',
+    },
     image: {
         width: '100%',
-        height: '100%'
-    }
+        height: '100%',
+    },
+    
 
 });
 

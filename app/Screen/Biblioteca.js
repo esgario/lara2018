@@ -17,7 +17,7 @@ import axios from 'axios';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { URL_API } from '../Utils/url_api';
 
-import { GestureHandler } from 'expo';
+import * as GestureHandler from 'react-native-gesture-handler'
 const { Swipeable } = GestureHandler;
 
 // Http request
@@ -68,8 +68,6 @@ class Biblioteca extends Component {
         this.setState({nomeUsuarioLogado: nomeUsuario});
 
         this.getUserByNomeUsuario(nomeUsuario);
-
-        console.log('nomeUsuario',nomeUsuario);
  
     };
 
@@ -318,13 +316,13 @@ class Biblioteca extends Component {
                             <TouchableOpacity 
                                 onPress = {() => this.setState({ 
                                     exibeImagem: true,
-                                    uriImagemModal: `${urlGetImagem}?nomeImg=${item.path}&nomeApp=eFarmer`
+                                    uriImagemModal: `${urlGetImagem}?nomeImg=${item.path}&nomeApp=eFarmer&largura=${screenWidth}`
                                     }
                                 )}
                             >
                                 <Image
                                     style = {styles.imageListItSelf}
-                                    source = {{uri: `${urlGetImagem}?nomeImg=${item.path}&nomeApp=eFarmer&largura=100&altura=100`}}
+                                    source = {{uri: `${urlGetImagem}?nomeImg=${item.path}&nomeApp=eFarmer&largura=300&altura=300`}}
                                 />
 
                             </TouchableOpacity>                        
@@ -338,11 +336,15 @@ class Biblioteca extends Component {
                             </View>
                             <View style = {styles.imageTextContainer}>
                                 <Text style = {styles.imageTextTitle}>Latitude: </Text>
-                                <Text style = {styles.imageTextDescription}>{item.localizacao.split(',')[0]}</Text>   
+                                <Text style = {styles.imageTextDescription}>
+                                    {item.localizacao? item.localizacao.split(',')[0]: item.localizacao}
+                                </Text>   
                             </View>
                             <View style = {styles.imageTextContainer}>
                                 <Text style = {styles.imageTextTitle}>Longitude: </Text>
-                                <Text style = {styles.imageTextDescription}>{item.localizacao.split(',')[1]}</Text>   
+                                <Text style = {styles.imageTextDescription}>
+                                    {item.localizacao? item.localizacao.split(',')[1]: item.localizacao}
+                                </Text>   
                             </View>
 
                         </View>
@@ -437,7 +439,8 @@ class Biblioteca extends Component {
 
 export default Biblioteca;
 
-const styles = StyleSheet.create({ 
+const styles = StyleSheet.create({
+     
     container: {
         flex: 1,
         backgroundColor: '#fafafa'
@@ -486,7 +489,6 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         marginBottom: 10,
         paddingHorizontal: 20,
-
     },
     button: {
         alignSelf: 'center',
@@ -511,7 +513,7 @@ const styles = StyleSheet.create({
     },
     imageModal: {
         width: '80%',
-        height: '80%',
+        height: '80%'       
     }
 
 });

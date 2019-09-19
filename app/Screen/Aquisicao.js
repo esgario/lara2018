@@ -270,7 +270,7 @@ class Aquisicao extends Component {
             }
         })
         .then (response => {
-            console.log('NÃO DEU ERRO SALAVR IMAGEM NO BANCO'); 
+            console.log('NÃO DEU ERRO SALVAR IMAGEM NO BANCO'); 
             status = true;
             urlImg = response.data._links.imagem.href;
         })

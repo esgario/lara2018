@@ -8,13 +8,15 @@ import { StyleSheet,
         TouchableOpacity, 
         TextInput,
         ActivityIndicator,
-        Dimensions
+        Dimensions,
+        Modal
     } from 'react-native';
 
 import { Formik } from 'formik';
 import * as yup from 'yup';
 import { ScrollView } from 'react-native-gesture-handler';
 import axios from 'axios';
+import { CheckBox } from 'react-native-elements'
 
 import { URL_API } from '../Utils/url_api';
 
@@ -23,7 +25,8 @@ const screenWidth = Math.round(Dimensions.get('window').width);
 const screenHeight = Math.round(Dimensions.get('window').height);
 
 // Http request
-const urlGet = `${URL_API}/usuario/verificaLogin?`;
+const urlGetLogIn = `${URL_API}/usuario/verificaLogin?`;
+const urlGetTermosUso = `${URL_API}/termos/search/findByTipo`;
 
 const validationSchema = yup.object().shape({
     nomeUsuario: yup
@@ -39,6 +42,7 @@ const validationSchema = yup.object().shape({
 class Home extends Component {
 
     static navigationOptions = {
+
         title: 'Log in',
         headerStyle: {
           backgroundColor: '#39b500',
@@ -48,6 +52,14 @@ class Home extends Component {
           fontWeight: 'bold',
           fontSize: 30
         }
+
+    };
+
+    state = {
+
+        exibeModal: false,
+        texto_termoUso: null
+
     };
 
     /**
@@ -61,7 +73,7 @@ class Home extends Component {
 
         await axios({
             method: 'get',
-            url: urlGet,
+            url: urlGetLogIn,
             params: {
                 nomeUsuario: values.nomeUsuario,
                 senha: values.senha
@@ -90,159 +102,218 @@ class Home extends Component {
 
     };
 
+    /**
+     * Método para buscar os termo de uso do app no banco e habilitar exibição no Modal
+     * @author Pedro Biasutti
+     */
+    temosUso = async () => {
+
+        texto = '';
+
+        await axios({
+            method: 'get',
+            url: urlGetTermosUso,
+            params: {
+                tipo: 'termos-de-uso',
+            }
+        })
+        .then (function(response) {
+            console.log('NÃO DEU ERRO PEGA TERMOS DE USO');
+            texto = response.data.texto;
+
+        })
+        .catch (function(error){
+            console.log('DEU ERRO PEGA TERMOS DE USO');       
+        })
+
+        this.setState({texto_termoUso: texto, exibeModal: true});
+
+    };
+
     render () {
 
         return (
 
-                <ScrollView>
-                    
-                    <View style = {{alignItems: 'center'}}>
+            <ScrollView>
+                
+                <View style = {{alignItems: 'center'}}>
 
-                        <View style = {{alignItems: 'center'}}>
-                            <Image
-                                style = {styles.image}
-                                source = {require('./../assets/logo01_sb.png')}
-                                resizeMode = 'contain'
-                            />
-                        </View>
-                    </View>
+                    <Image
+                        style = {styles.image}
+                        source = {require('./../assets/logo01_sb.png')}
+                        resizeMode = 'contain'
+                    />
+
+                </View>
+                                
+                <Formik
+
+                    initialValues = {{
+                        // nomeUsuario: '',
+                        // senha: ''
+                        nomeUsuario: 'pedrobiasutti',
+                        senha: 'asdasd'
+                    }}
+
+                    onSubmit = { async (values, actions) => {
+
+                        let validation = 0;
+
+                        validation = await this.validaForm(values);
+                        actions.setSubmitting(false);
+
+                        if (validation === 5) {
+
+                            this.props.navigation.navigate('Menu', {nomeUsuario: values.nomeUsuario});
+
+                        }
+                    }}
+                    // validateOnBlur= {false}
+                    validateOnChange = {false}
+                    validationSchema = {validationSchema}
+                    >
+                    {formikProps => (
+                        <React.Fragment>
+
+                            <View>
+
+                                <View style = {styles.containerStyle}>
+                                    <Text style = {styles.labelStyle}>Usuario</Text>
+                                    <TextInput
+                                        placeholder = 'usuario'
+                                        style = {styles.inputStyle}
+                                        onChangeText = {formikProps.handleChange('nomeUsuario')}
+                                        onBlur = {formikProps.handleBlur('nomeUsuario')}
+                                        onSubmitEditing = {() => { this.senha.focus() }}
+                                        ref = {(ref) => { this.nomeUsuario = ref; }}
+                                        returnKeyType = { "next" }
+                                    />
+
+                                </View>
+
+                                {formikProps.errors.nomeUsuario &&
+                                    <View>
+                                        <Text style = {{ color: 'red', textAlign: 'center'}}>
+                                            {formikProps.touched.nomeUsuario && formikProps.errors.nomeUsuario}
+                                        </Text>
+                                    </View>
+                                }
+
+                            </View>
+
+                            <View>
+
+                                <View style = {styles.containerStyle}>
+                                    <Text style = {styles.labelStyle}>Senha</Text>
+                                    <TextInput
+                                        placeholder = 'senha123'
+                                        style = {styles.inputStyle}
+                                        onChangeText = {formikProps.handleChange('senha')}
+                                        onBlur = {formikProps.handleBlur('senha')}
+                                        secureTextEntry
+                                        ref = {(ref) => { this.senha = ref; }}
+                                        returnKeyType={ "next" }
+                                    />
+                                </View>
+
+                                {formikProps.errors.senha &&
+                                    <View>
+                                        <Text style = {{ color: 'red', textAlign: 'center'}}>
+                                            {formikProps.touched.senha && formikProps.errors.senha}
+                                        </Text>
+                                    </View>
+                                }
+
+                            </View>
+
+                            <View style = {{alignItems: 'center'}}>
+
+                            <Text style = {styles.hiperlink}
+                                onPress = {() => this.props.navigation.navigate('RecuperarSenha')}
+                            >
+                            Esqueceu sua senha ?
+                            </Text>
+
+                                {formikProps.isSubmitting ? (
+                                    <View style = {styles.activity}>
+                                        <ActivityIndicator/>
+                                    </View>
+                                    ) : (
+                                    <View style = {{flexDirection: 'column', flex: 1, width: '50%'}}>
+
+                                        <TouchableOpacity 
+                                            style = {styles.button}
+                                            onPress={formikProps.handleSubmit}
+                                        >
+                                            <Text style = {styles.text}>Log In</Text>
+                                        </TouchableOpacity>
+
+                                    </View>
+                                )}
+                            </View>
                                     
-                    <Formik
+                        </React.Fragment>
+                    )}
+                    </Formik>
 
-                        initialValues = {{
-                            // nomeUsuario: '',
-                            // senha: ''
-                            nomeUsuario: 'pedrobiasutti',
-                            senha: 'asdasd'
+                    <Text style = {[styles.hiperlink, {marginBottom: 0}]}
+                        onPress = {() => this.props.navigation.navigate('Cadastro')}
+                    >
+                    Cadastro
+                    </Text>
+
+                    <Text style = {[styles.hiperlink, {marginBottom: 20}]}
+                        onPress = {() => this.temosUso()}
+                    >
+                    Termos de uso
+                    </Text>
+
+                    <Modal
+                        transparent = {false}
+                        visible = {this.state.exibeModal}
+                        onRequestClose = {() => {
+                        console.log('Modal has been closed.');
                         }}
+                    >
 
-                        onSubmit = { async (values, actions) => {
+                        <View style={styles.modalContainer}>
 
-                            let validation = 0;
+                            <Text style = {styles.textoModal}>{this.state.texto_termoUso}</Text>
 
-                            validation = await this.validaForm(values);
-                            actions.setSubmitting(false);
+                            <CheckBox
+                                title='Click Here'
+                                // checked={this.state.checked}
+                                checked={()=> {console.log('deu certo')}}
+                            />
 
-                            if (validation === 5) {
+                            <TouchableOpacity
+                                onPress = {() => {
+                                    this.setState({ exibeModal: false });
+                                }}
+                                style = {styles.button}
+                            >
 
-                                this.props.navigation.navigate('Menu', {nomeUsuario: values.nomeUsuario});
+                                <Text style = {styles.text}>Fechar</Text>
 
-                            }
-                        }}
-                        // validateOnBlur= {false}
-                        validateOnChange = {false}
-                        validationSchema = {validationSchema}
-                        >
-                        {formikProps => (
-                            <React.Fragment>
+                            </TouchableOpacity>
 
-                                <View>
+                        </View>
 
-                                    <View style = {styles.containerStyle}>
-                                        <Text style = {styles.labelStyle}>Usuario</Text>
-                                        <TextInput
-                                            placeholder = 'usuario'
-                                            style = {styles.inputStyle}
-                                            onChangeText = {formikProps.handleChange('nomeUsuario')}
-                                            onBlur = {formikProps.handleBlur('nomeUsuario')}
-                                            onSubmitEditing = {() => { this.senha.focus() }}
-                                            ref = {(ref) => { this.nomeUsuario = ref; }}
-                                            returnKeyType = { "next" }
-                                        />
 
-                                    </View>
+                    </Modal>
 
-                                    {formikProps.errors.nomeUsuario &&
-                                        <View>
-                                            <Text style = {{ color: 'red', textAlign: 'center'}}>
-                                                {formikProps.touched.nomeUsuario && formikProps.errors.nomeUsuario}
-                                            </Text>
-                                        </View>
-                                    }
+            </ScrollView>
 
-                                </View>
-
-                                <View>
-
-                                    <View style = {styles.containerStyle}>
-                                        <Text style = {styles.labelStyle}>Senha</Text>
-                                        <TextInput
-                                            placeholder = 'senha123'
-                                            style = {styles.inputStyle}
-                                            onChangeText = {formikProps.handleChange('senha')}
-                                            onBlur = {formikProps.handleBlur('senha')}
-                                            secureTextEntry
-                                            ref = {(ref) => { this.senha = ref; }}
-                                            returnKeyType={ "next" }
-                                        />
-                                    </View>
-
-                                    {formikProps.errors.senha &&
-                                        <View>
-                                            <Text style = {{ color: 'red', textAlign: 'center'}}>
-                                                {formikProps.touched.senha && formikProps.errors.senha}
-                                            </Text>
-                                        </View>
-                                    }
-
-                                </View>
-
-                                <View style = {{alignItems: 'center'}}>
-
-                                <Text style = {styles.hiperlink}
-                                    onPress = {() => this.props.navigation.navigate('RecuperarSenha')}
-                                >
-                                Esqueceu sua senha ?
-                                </Text>
-
-                                    {formikProps.isSubmitting ? (
-                                        <View style = {styles.activity}>
-                                            <ActivityIndicator/>
-                                        </View>
-                                        ) : (
-                                        <View style = {{flexDirection: 'column', flex: 1, width: '50%'}}>
-
-                                            <TouchableOpacity 
-                                                style = {styles.button}
-                                                onPress={formikProps.handleSubmit}
-                                            >
-                                                <Text style = {styles.text}>Log In</Text>
-                                            </TouchableOpacity>
-
-                                        </View>
-                                    )}
-                                </View>
-                                        
-                            </React.Fragment>
-                        )}
-                        </Formik>
-
-                        <Text style = {[styles.hiperlink, {marginBottom: 20}]}
-                            onPress = {() => this.props.navigation.navigate('Cadastro')}
-                        >
-                        Cadastro
-                        </Text>
-
-                </ScrollView>
         );
-    }
+        
+    };
     
 };
 
 export default Home;
 
-const fontStyle = Platform.OS === 'ios' ? 'Arial Hebrew' : 'serif';
-
 const styles = StyleSheet.create({
-    headers: { 
-        alignItems: 'center',
-        fontSize: 28,
-        fontWeight: 'bold',
-        fontFamily: fontStyle,
-        color: '#39b500',
-        marginTop: 20,
-        
-    },
+    
     button: {
         alignSelf: 'stretch',
         backgroundColor: '#39b500',
@@ -250,7 +321,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#39b500',
         marginHorizontal: 5,
-        marginVertical: 20,
+        marginVertical: 10,
     }, 
     text: {
         alignSelf: 'center',
@@ -287,14 +358,28 @@ const styles = StyleSheet.create({
         fontSize: 18,
         textDecorationLine: 'underline', 
         color: '#39b500',
-        marginTop: 10 
+        marginVertical: 10 
     },
     image: {
-        width: 0.5 * screenWidth, 
-        height: 0.3 * screenHeight
+        width: 0.45 * screenWidth, 
+        height: 0.25 * screenHeight
     },
     activity : {
         marginTop: 10
+    },
+    modalContainer: {
+        flex: 1,
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    textoModal: {
+        textAlign: 'justify',
+        color: 'black',
+        fontSize: 20,
+        fontWeight: '400',
+        lineHeight: 25,
+        marginHorizontal: 10
     }
 });
 
