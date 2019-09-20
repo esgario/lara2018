@@ -92,8 +92,8 @@ class Resultado extends Component {
             imagePath: imagePath
         });
 
-        // this.processarDados(imagePath);
         this.criaRequisicao(imagePath);
+        // this.gerenciaChecaResult('63');
         // this.getUserByNomeUsuario(nomeUsuario);
         
     };
@@ -146,9 +146,10 @@ class Resultado extends Component {
      */
     criaRequisicao = async (imagemPath) => {
 
-        console.log(imagemPath);
+        console.log('criaRequisicao');
+        console.log('imagemPath',imagemPath);
 
-        var resp = 'error';
+        let resposta = 'error';
         
         await axios({
             method: 'get',
@@ -159,19 +160,19 @@ class Resultado extends Component {
             }
         })
         .then (function(response) {
-            console.log(response.data);
+            console.log('response.data',response.data);
             console.log('NÃO DEU ERRO CRIA REQUISIÇÃO');
-            resp = response.data;
+            resposta = response.data;
         })
         .catch (function(error){
             console.log(error);
             console.log('DEU ERRO CRIA REQUISIÇÃO');     
         })
 
-        if ( resp !== 'error') {
+        if ( resposta !== 'error') {
 
-            console.log(resp);
-            this.gerenciaChecaResult(resp);
+            console.log('resposta',resposta);
+            this.gerenciaChecaResult(resposta);
 
         } else {
 
@@ -188,7 +189,9 @@ class Resultado extends Component {
      */
     checaResultado = async (job_id) => {
 
-        let resp = '';
+        let resp = 'error';        
+
+        console.log('veio no checaResult');
 
         await axios({
             method: 'get',
@@ -199,32 +202,38 @@ class Resultado extends Component {
         })
         .then (function(response) {
             console.log('NÃO DEU CHECA RESULTADO');
+            console.log('response.data',response.data);
             resp = response.data;
         })
         .catch (function(error){
             console.log('DEU ERRO CHECA RESULTADO');           
         })
 
-        if ( resp !== 'error') {
+        if ( resp !== 'error' && resp !== '') {
 
             if (resp == 'processando') {
 
+                console.log(resp);
                 this.setState({result_status: resp});
 
             } else {
 
                 outImgPath = this.state.imagePath.replace('.png','_output.png');
-                uriImg = `${urlGetImagem}?nomeImg=${outImgPath}&nomeApp=eFarmer`
+                uriImg = `${urlGetImagem}?nomeImg=${outImgPath}&nomeApp=eFarmer`;
 
+                console.log('resp', resp);
                 console.log('uriImg',uriImg);
     
-                this.setState({result_status: 'completo', textoPython: resp});
+                this.setState({result_status: 'completo', textoPython: resp, uriImg: uriImg});
+
+                console.log('this.state.textoPython 001', this.state.textoPython);
+                console.log('this.state.uriImg 001', this.state.uriImg);
 
             }
 
         } else {
 
-            console.log('DEU ERRO RESPOSTA CHECA RESULTADO');   
+            console.log('DEU ERRO RESPOSTA CHECA RESULTADO');
 
         }
 
@@ -233,18 +242,41 @@ class Resultado extends Component {
     gerenciaChecaResult = async (job_id) => {
         
         let count = 0;
-        let result = this.state.textoPython;
+        let result = '';
 
-        while (count <5 && result == ''){
+        while (count <5 && this.state.textoPython == ''){
 
             console.log(`Tentativa numero: ${count}`);
-            setTimeout(() => {this.checaResultado(job_id)}, 3000);
+
+            await this.checaResultado(job_id);
+
+            // Função para forcar delay
+            await this.performTimeConsumingTask(3000);
+
+            count = count + 1;
 
         }
+
+        result = this.state.textoPython;
+        console.log('this.state.textoPython',result);
         
-        this.analizaResposta(resp);
+        this.analizaResposta(result);
 
     };
+
+    /**
+     * Método para fazer o delay dado tempo em milissegundos
+     * @author Pedro Biasutti
+     * @param time - milissegundos
+     */
+    performTimeConsumingTask = async(time) => {
+        return new Promise((resolve) =>
+            setTimeout(
+                () => { resolve('result') },
+            time
+            )
+        );
+    }
 
     /**
      * Método para pegar o retorno do codigo que processas o dados e analizar para os 3 tipos de respostas
@@ -253,9 +285,9 @@ class Resultado extends Component {
      */
     analizaResposta = async (resposta) => {
 
-        resp = resposta;
+        let resp = resposta;
         resp = resp.split('\n');
-        nomeApp = 'eFarmer';
+        let nomeApp = 'eFarmer';
 
         // Pega layout do resultado
         modeloResp = await this.pegaModeloResultado(nomeApp);
