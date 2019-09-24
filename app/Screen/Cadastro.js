@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+
 import {
     SafeAreaView,
     TextInput,
@@ -9,7 +10,9 @@ import {
     StyleSheet,
     Switch,
     Alert,
-    ScrollView
+    ScrollView,
+    Modal,
+    TouchableOpacity
   } from 'react-native';
 
 import { Formik } from 'formik';
@@ -18,17 +21,18 @@ import * as yup from 'yup';
 import * as Permissions from 'expo-permissions';
 
 import StyledButton from '../Style/Button';
-import { URL_API } from '../Utils/url_api';
 
+import { URL_API } from '../Utils/url_api';
 
 // Http request
 const urlValidaNovosDados = `${URL_API}/usuario/validaNovosDados`;
 const urlCadastraUsuario = `${URL_API}/usuario`;
 const urlPegaLocalizacao = `${URL_API}/python/pegaLocalizacao`
+const urlGetTermosUso = `${URL_API}/termos/search/findByTipo`;
 
 const FieldWrapper = ({ children, label, formikProps, formikKey }) => (
 
-    <View style = {{ marginHorizontal: 20, marginVertical: 5 }}>
+    <View style = {{ marginLeft: 20, marginRight: 5, marginVertical: 5 }}>
         <Text style = {{ marginBottom: 5, fontSize:20 }}>{label}</Text>
         {children}
         <Text style = {{ color: 'red' }}>
@@ -109,7 +113,9 @@ class Cadastro extends Component {
         httpStatusG: 0,
         cidade: '',
         estado: '',
-        hasLocationPermission: null
+        hasLocationPermission: null,
+        exibeModal: false,
+        texto_termoUso: null
 
     };
 
@@ -142,9 +148,12 @@ class Cadastro extends Component {
         this.setState({ hasLocationPermission: status === 'granted' });
 
         const permission = await Permissions.getAsync(Permissions.LOCATION);
+
         if (permission.status !== 'granted') {
 
-            console.log('NÃO DEU ERRO NO PEGA COORDENADAS');
+            this.setState({latitude: null, longitude: null})
+
+            console.log('DEU ERRO NO PEGA COORDENADAS');
 
         }   else {
 
@@ -328,14 +337,10 @@ class Cadastro extends Component {
         })
         .then (function(response) {
             console.log('NÃO DEU ERRO SING UP');
-            // console.warn(response.status);
-            // console.log('Http status: ',response.status);
             httpStatus = response.status;
         })
         .catch (function(error){
             console.log('DEU ERRO SING UP');
-            // console.warn(error.request.status);
-                httpStatus = error.request.status;
         })
 
         this.setState({httpStatusG: httpStatus})
@@ -358,6 +363,37 @@ class Cadastro extends Component {
             );
         
         }
+
+    };
+
+    /**
+     * Método para buscar os termo de uso do app no banco e habilitar exibição no Modal
+     * @author Pedro Biasutti
+     */
+    temosUso = async () => {
+
+        texto = '';
+
+        await axios({
+            method: 'get',
+            url: urlGetTermosUso,
+            params: {
+                tipo: 'termos-de-uso',
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
+            }
+        })
+        .then (function(response) {
+            console.log('NÃO DEU ERRO PEGA TERMOS DE USO');
+            texto = response.data.texto;
+
+        })
+        .catch (function(error){
+            console.log('DEU ERRO PEGA TERMOS DE USO');       
+        })
+
+        this.setState({texto_termoUso: texto, exibeModal: true});
 
     };
 
@@ -649,12 +685,53 @@ class Cadastro extends Component {
                             </View>
 
                             
+                            <View style = {{flexDirection: 'row'}}>
+                                
+                                <StyledSwitch
+                                    label = 'Aceito os'
+                                    formikKey = 'aceitaTermos'
+                                    formikProps = {formikProps}
+                                />
 
-                            <StyledSwitch
-                                label = 'Aceita os termos'
-                                formikKey = 'aceitaTermos'
-                                formikProps = {formikProps}
-                            /> 
+                                <Text style = {[styles.hiperlink]}
+                                    onPress = {() => this.temosUso()}
+                                >
+                                termos de uso
+                                </Text> 
+
+                            </View>
+
+                            <Modal
+                                transparent = {false}
+                                visible = {this.state.exibeModal}
+                                onRequestClose = {() => {
+                                console.log('Modal has been closed.');
+                                }}
+                            >
+
+                                <View style={styles.modalContainer}>
+
+                                    <ScrollView>
+
+                                        <Text style = {styles.textoModal}>{this.state.texto_termoUso}</Text>
+
+                                    </ScrollView>
+
+                                    <TouchableOpacity
+                                        onPress = {() => {
+                                            this.setState({ exibeModal: false });
+                                        }}
+                                        style = {styles.button}
+                                    >
+
+                                        <Text style = {styles.text}>Fechar</Text>
+
+                                    </TouchableOpacity>
+
+                                </View>
+
+
+                            </Modal>
 
                             <View style = {{alignItems: 'center'}}>
 
@@ -744,6 +821,43 @@ const styles = StyleSheet.create({
     },
     activity: {
         transform: ([{ scaleX: 1.5 }, { scaleY: 1.5 }]),
+    },
+    modalContainer: {
+        flex: 1,
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    textoModal: {
+        textAlign: 'justify',
+        color: 'black',
+        fontSize: 16,
+        fontWeight: '400',
+        lineHeight: 20,
+        marginHorizontal: 10
+    },
+    button: {
+        alignSelf: 'stretch',
+        backgroundColor: '#39b500',
+        borderRadius: 5,
+        borderWidth: 1,
+        borderColor: '#39b500',
+        marginHorizontal: 5,
+        marginVertical: 10,
+    },
+    text: {
+        alignSelf: 'center',
+        fontSize: 20,
+        fontWeight: '600',
+        color: 'white',
+        paddingVertical: 10
+    },
+    hiperlink: {
+        alignSelf: 'flex-start',
+        fontSize: 20,
+        textDecorationLine: 'underline', 
+        color: '#39b500',
+        marginVertical: 5
     },
 
 });

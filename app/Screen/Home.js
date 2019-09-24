@@ -115,6 +115,9 @@ class Home extends Component {
             url: urlGetTermosUso,
             params: {
                 tipo: 'termos-de-uso',
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -278,13 +281,17 @@ class Home extends Component {
 
                         <View style={styles.modalContainer}>
 
-                            <Text style = {styles.textoModal}>{this.state.texto_termoUso}</Text>
+                            <ScrollView>
 
-                            <CheckBox
+                                <Text style = {styles.textoModal}>{this.state.texto_termoUso}</Text>
+
+                            </ScrollView>
+
+                            {/* <CheckBox
                                 title='Click Here'
                                 // checked={this.state.checked}
                                 checked={()=> {console.log('deu certo')}}
-                            />
+                            /> */}
 
                             <TouchableOpacity
                                 onPress = {() => {
@@ -341,7 +348,6 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 18,
         paddingLeft: 20,
-        
     },
     containerStyle: {
         flex: 1,
@@ -376,9 +382,9 @@ const styles = StyleSheet.create({
     textoModal: {
         textAlign: 'justify',
         color: 'black',
-        fontSize: 20,
+        fontSize: 16,
         fontWeight: '400',
-        lineHeight: 25,
+        lineHeight: 20,
         marginHorizontal: 10
     }
 });

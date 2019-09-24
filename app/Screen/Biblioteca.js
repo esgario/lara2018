@@ -45,6 +45,7 @@ class Biblioteca extends Component {
     };
 
     static navigationOptions = {
+
         title: 'Biblioteca',
         headerStyle: {
           backgroundColor: '#39b500',
@@ -82,11 +83,17 @@ class Biblioteca extends Component {
         let validation = 0;
         let data;
 
+        let num = Math.round(Math.random()*1000);
+
         await axios({
             method: 'get',
             url: urlGetNomeUsuario,
             params: {
                 nomeUsuario: nomeUsuario,
+                num: num
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -170,6 +177,9 @@ class Biblioteca extends Component {
             url: urlGetImagemByPath,
             params: {
                 path: path,
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -206,6 +216,7 @@ class Biblioteca extends Component {
             data: `${urlUser}`,
             headers: { 
                 'Content-Type': 'text/uri-list',
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -510,6 +521,7 @@ const styles = StyleSheet.create({
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
+
     },
     imageModal: {
         width: '80%',

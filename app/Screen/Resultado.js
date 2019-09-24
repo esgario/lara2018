@@ -93,50 +93,7 @@ class Resultado extends Component {
         });
 
         this.criaRequisicao(imagePath);
-        // this.gerenciaChecaResult('63');
-        // this.getUserByNomeUsuario(nomeUsuario);
         
-    };
-
-     /**
-     * Método que retorna o usuário sendo passado seu nome do usuário.
-     * @author Pedro Biasutti
-     * @param nomeUsuario - nome do usuário logado
-     */
-    getUserByNomeUsuario = async (nomeUsuario) => {
-
-        let nomeUsuarioLogado = nomeUsuario;
-        let nomeCompleto = '';
-        let validation = false;
-        let urlUsr = '';
-
-        await axios({
-            method: 'get',
-            url: urlGetNomeUsuario,
-            params: {
-                nomeUsuario: nomeUsuarioLogado,
-            }
-        })
-        .then (function(response) {
-            console.log('NÃO DEU ERRO NO GET USUARIO');
-            urlUsr = response.data._links.self.href;
-            nomeCompleto = response.data.nomeCompleto;
-            validation = true;
-        })
-        .catch (function(error){
-            console.log('DEU ERRO NO GET USUARIO');
-        })
-
-        if (validation) {
-
-            this.setState({nomeCompletoLogado: nomeCompleto, urlUsr: urlUsr});
-
-        } else {
-
-            alert('O nome do usuário não existe no banco de dados.');
-
-        }
-
     };
 
     /**
@@ -209,7 +166,8 @@ class Resultado extends Component {
             console.log('DEU ERRO CHECA RESULTADO');           
         })
 
-        if ( resp !== 'error' && resp !== '') {
+        // if ( resp !== 'error' && resp !== '') {
+        if ( resp !== 'error') {
 
             if (resp == 'processando') {
 
@@ -244,7 +202,7 @@ class Resultado extends Component {
         let count = 0;
         let result = '';
 
-        while (count <5 && this.state.textoPython == ''){
+        while (count <10 && this.state.textoPython == ''){
 
             console.log(`Tentativa numero: ${count}`);
 
@@ -254,6 +212,28 @@ class Resultado extends Component {
             await this.performTimeConsumingTask(3000);
 
             count = count + 1;
+
+        }
+
+        if (count = 10 && this.state.textoPython == '') {
+
+            let texto = 'O número de tentativas excedeu o permitido. Tente novamente'
+
+
+            // Caso confirmado, vai para pagina o menu
+            Alert.alert(
+                'Atenção',
+                texto,
+                [             
+                    {text: 'Ok', onPress: () => {
+                        this.props.navigation.navigate('Menu', {
+                            nomeUsuario: this.state.nomeUsuarioLogado,
+                        })
+                        }
+                    },
+                ],
+                { cancelable: false }
+            );
 
         }
 
@@ -270,12 +250,16 @@ class Resultado extends Component {
      * @param time - milissegundos
      */
     performTimeConsumingTask = async(time) => {
+
         return new Promise((resolve) =>
+        
             setTimeout(
                 () => { resolve('result') },
             time
             )
+
         );
+
     }
 
     /**
@@ -398,15 +382,16 @@ class Resultado extends Component {
 
                                 </View>
 
-                                <View style = {styles.markdown}>
+                                    <View style = {styles.markdown}>
 
-                                    <ScrollView>
+                                        <ScrollView>
 
-                                        <Markdown rules={rules}>{this.state.textoModelo}</Markdown>
 
-                                    </ScrollView>
+                                            <Markdown rules={rules}>{this.state.textoModelo}</Markdown>
 
-                                </View>
+                                        </ScrollView>
+
+                                    </View>
 
                                 <TouchableOpacity
                                     style = {styles.button}
@@ -483,7 +468,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         marginVertical: 10,
         paddingHorizontal: 10,
-        height: 0.30 * screenHeigth,
+        height: 0.20 * screenHeigth,
     },
     image: {
         width: 0.9 * screenWidth,

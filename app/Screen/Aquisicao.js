@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 
 import axios from 'axios';
+
+import * as ImageManipulator from 'expo-image-manipulator';
+
 import { URL_API } from '../Utils/url_api';
 
 // Http request
@@ -26,6 +29,7 @@ const screenWidth = Math.round(Dimensions.get('window').width);
 class Aquisicao extends Component {
 
     state = {
+
         image: null,
         enviando: false,
         nomeUsuarioLogado: '',
@@ -34,9 +38,11 @@ class Aquisicao extends Component {
         imagePath: '',
         latitude: null,
         longitude: null,
+
     };
 
     static navigationOptions = {
+
         title: 'Aquisição',
         headerStyle: {
           backgroundColor: '#39b500',
@@ -46,6 +52,7 @@ class Aquisicao extends Component {
           fontWeight: 'bold',
           fontSize: 28
         },
+
     };
 
     /**
@@ -56,9 +63,11 @@ class Aquisicao extends Component {
 
         const { navigation } = this.props;
         const nomeUsuario = navigation.getParam('nomeUsuario', 'nomeUsuario erro');
-        const image = navigation.getParam('image', null);
+        let image = navigation.getParam('image', null);
         const latitude = navigation.getParam('latitude', null);
         const longitude = navigation.getParam('longitude', null);
+
+        image = await this.gerenciaResizeImg(image);
 
         this.setState({nomeUsuarioLogado: nomeUsuario, image, latitude, longitude});
 
@@ -104,6 +113,73 @@ class Aquisicao extends Component {
         }
 
     };
+
+    /**
+     * Método para gerenciar os casos de mudança da imagem
+     * @author Pedro Biasutti
+     * @param image - objeto imagem
+     */
+    gerenciaResizeImg = async (image) => {
+
+        console.log('this.gerenciaResizeImg');
+
+        const max_size = 2048;
+
+        if (image.width >= image.heigth){
+
+            if (image.width > max_size ) {
+
+                image = await this.resizeImage(image,max_size,null);        
+
+            } 
+
+        } else {
+
+            if (image.height > max_size ) {
+
+                image = await this.resizeImage(image,null,max_size);        
+
+            }
+
+        }
+
+        return image;
+
+    };
+
+    /**
+     * Método para manipular a imagem
+     * @author Pedro Biasutti
+     * @param image - objeto imagem
+     * @param img_width - largura de imagem desejada
+     * @param img_height - altura de imagem desejada
+     */
+    resizeImage = async (image, img_width, img_height) => {
+
+        console.log('this.resizeImage');
+
+        let size = {};
+        
+        if (img_height != null){
+
+            size['height'] = img_height;
+
+        }
+
+        if (img_width != null){
+
+            size['width'] = img_width;
+
+        }
+
+        const  new_img = await ImageManipulator.manipulateAsync(image.uri, 
+            [ { resize: size } ],
+            { format: 'png' });
+
+        
+        return new_img;
+
+    };
     
     /**
      * Método para fazer o upload da imagem tanto no sevidor quanto no banco de dados.
@@ -142,7 +218,7 @@ class Aquisicao extends Component {
 
                 if ( statusSalvaImagemBanco && statusSalvaImagemServidor ) {
 
-                    let image = this.state.image;
+                    let image = this.state.image;                    
         
                     this.setState({ 
                                     image: null,
@@ -157,7 +233,7 @@ class Aquisicao extends Component {
                     statusLinkaImagem = await this.linkaImagem(urlImg, urlUsr);
         
                     if (statusLinkaImagem) {
-        
+
                         var texto = 'Imagem enviada com sucesso.\n\n' +
                                 'Aperte "Ok" para processar os dados!\n\n';
                         

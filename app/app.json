@@ -1,6 +1,8 @@
 {
   "expo": {
     "name": "E-Farmer",
+    "icon": "./app/assets/app-icon.png",
+    "version": "1.0.0",
     "slug": "E-Farmer",
     "privacy": "public",
     "sdkVersion": "33.0.0",
@@ -25,6 +27,17 @@
     ],
     "ios": {
       "supportsTablet": true
+    },
+    "android": {
+      "package": "ufes.EFarmer.app",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "CAMERA_ROLL",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "LOCATION"
+      ]
     }
   }
 }

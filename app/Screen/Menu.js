@@ -151,7 +151,10 @@ class Menu extends Component {
         this.setState({ hasLocationPermission: status === 'granted' });
 
         const permission = await Permissions.getAsync(Permissions.LOCATION);
+
         if (permission.status !== 'granted') {
+
+            this.setState({latitude: null, longitude: null})
 
         }   else {
 
