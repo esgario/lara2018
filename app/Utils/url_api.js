@@ -1,3 +1,5 @@
-export const URL_API = 'http://192.168.0.160:8080/api'; // esse é o endereço de desenvolvimento
+//  Dev
+export const URL_API = 'http://192.168.0.160:8080/api';
 
-// PAREI AQUI
+//  Prod
+// export const URL_API = 'http://labcin.ufes.br/app/api';

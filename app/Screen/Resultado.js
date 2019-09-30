@@ -22,7 +22,6 @@ const urlGetImagem = `${URL_API}/imagem/baixar`;
 const urlPegaModeloResultado = `${URL_API}/resultado/pegaModeloResultado`;
 const urlCriaRequi = `${URL_API}/python/inference`;
 const urlChecaResultado = `${URL_API}/python/result`;
-const urlGetNomeUsuario = `${URL_API}/usuario/search/findByNomeUsuario`;
 
 // Dimensões da tela
 const screenWidth = Math.round(Dimensions.get('window').width);
@@ -385,7 +384,6 @@ class Resultado extends Component {
                                     <View style = {styles.markdown}>
 
                                         <ScrollView>
-
 
                                             <Markdown rules={rules}>{this.state.textoModelo}</Markdown>
 

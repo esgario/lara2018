@@ -12,6 +12,7 @@ import {
 import Icon from 'react-native-vector-icons/FontAwesome';
 
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import * as Permissions from 'expo-permissions';
 
 const screenWidth = Math.round(Dimensions.get('window').width);
@@ -20,6 +21,7 @@ const screenHeight = Math.round(Dimensions.get('window').height);
 class Menu extends Component {
 
     static navigationOptions = {
+
         title: 'Menu',
         headerStyle: {
           backgroundColor: '#39b500',
@@ -29,9 +31,11 @@ class Menu extends Component {
           fontWeight: 'bold',
           fontSize: 30
         },
+
     };
 
     state = {
+
         nomeUsuarioLogado: '',
         image: null,
         latitude: null,
@@ -39,6 +43,7 @@ class Menu extends Component {
         hasCameraPermission: null,
         hasCameraAlbumPermission: null,
         hasLocationPermission: null
+
     };
 
     /**
@@ -156,23 +161,19 @@ class Menu extends Component {
 
             this.setState({latitude: null, longitude: null})
 
+            console.log('DEU ERRO NO PEGA COORDENADAS');
+
         }   else {
 
-            navigator.geolocation.getCurrentPosition(
-                position => {
-    
-                    console.log('NÃO DEU ERRO NO PEGA COORDENADAS');
-                    this.setState({latitude: position.coords.latitude, longitude: position.coords.longitude})
-    
-                },
-                error => {
-    
-                    console.log('DEU ERRO NO PEGA COORDENADAS');
-    
-                }
-            )
+            let location = await Location.getCurrentPositionAsync({});
 
-        }        
+            console.log('NÃO DEU ERRO NO PEGA COORDENADAS');
+
+            console.log(location);
+
+            this.setState({latitude: location.coords.latitude, longitude: location.coords.longitude})
+
+        }     
 
     };
 
@@ -183,11 +184,13 @@ class Menu extends Component {
             <View style = {styles.menuContainer}>
 
                 <View style = {{marginBottom: -40, marginTop: -20}}>
+
                     <Image
                         style={{width: 0.5 * screenWidth, height: 0.3 * screenHeight}}
                         source = {require('./../assets/logo02_sb.png')}
                         resizeMode = 'contain'
                     />
+
                 </View>
 
                 <View style = {styles.topButtonsContainer}>
@@ -246,6 +249,7 @@ class Menu extends Component {
                 </View>
 
             </View>
+            
         );
 
     };
@@ -257,6 +261,7 @@ export default Menu;
 const fontStyle = Platform.OS === 'ios' ? 'Arial Hebrew' : 'serif';
 
 const styles = StyleSheet.create({
+
     headers: { 
       fontFamily: fontStyle,
       color: '#33ccff',
@@ -341,4 +346,5 @@ const styles = StyleSheet.create({
         color: '#39b500',
         marginTop: 10 
     },
+
 });

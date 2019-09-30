@@ -173,10 +173,8 @@ class Aquisicao extends Component {
         }
 
         const  new_img = await ImageManipulator.manipulateAsync(image.uri, 
-            [ { resize: size } ],
-            { format: 'png' });
+            [ { resize: size } ]);
 
-        
         return new_img;
 
     };

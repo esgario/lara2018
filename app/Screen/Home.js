@@ -16,7 +16,7 @@ import { Formik } from 'formik';
 import * as yup from 'yup';
 import { ScrollView } from 'react-native-gesture-handler';
 import axios from 'axios';
-import { CheckBox } from 'react-native-elements'
+import Markdown from 'react-native-markdown-renderer';
 
 import { URL_API } from '../Utils/url_api';
 
@@ -28,6 +28,7 @@ const screenHeight = Math.round(Dimensions.get('window').height);
 const urlGetLogIn = `${URL_API}/usuario/verificaLogin?`;
 const urlGetTermosUso = `${URL_API}/termos/search/findByTipo`;
 
+// YUP validation
 const validationSchema = yup.object().shape({
     nomeUsuario: yup
     .string()
@@ -58,7 +59,8 @@ class Home extends Component {
     state = {
 
         exibeModal: false,
-        texto_termoUso: null
+        texto_termoUso: null,
+        checked: false
 
     };
 
@@ -231,17 +233,20 @@ class Home extends Component {
 
                             <View style = {{alignItems: 'center'}}>
 
-                            <Text style = {styles.hiperlink}
-                                onPress = {() => this.props.navigation.navigate('RecuperarSenha')}
-                            >
-                            Esqueceu sua senha ?
-                            </Text>
+                                <Text style = {styles.hiperlink}
+                                    onPress = {() => this.props.navigation.navigate('RecuperarSenha')}
+                                >
+                                    Esqueceu sua senha ?
+                                </Text>
 
                                 {formikProps.isSubmitting ? (
+
                                     <View style = {styles.activity}>
                                         <ActivityIndicator/>
                                     </View>
+
                                     ) : (
+
                                     <View style = {{flexDirection: 'column', flex: 1, width: '50%'}}>
 
                                         <TouchableOpacity 
@@ -253,10 +258,12 @@ class Home extends Component {
 
                                     </View>
                                 )}
+                                
                             </View>
                                     
                         </React.Fragment>
                     )}
+                    
                     </Formik>
 
                     <Text style = {[styles.hiperlink, {marginBottom: 0}]}
@@ -271,43 +278,40 @@ class Home extends Component {
                     Termos de uso
                     </Text>
 
-                    <Modal
-                        transparent = {false}
-                        visible = {this.state.exibeModal}
-                        onRequestClose = {() => {
-                        console.log('Modal has been closed.');
-                        }}
-                    >
+                    <View>
 
-                        <View style={styles.modalContainer}>
+                        <Modal
+                            transparent = {false}
+                            visible = {this.state.exibeModal}
+                            onRequestClose = {() => {
+                            console.log('Modal has been closed.');
+                            }}
+                        >
 
-                            <ScrollView>
+                            <View style={styles.modalContainer}>
 
-                                <Text style = {styles.textoModal}>{this.state.texto_termoUso}</Text>
+                                <ScrollView>
 
-                            </ScrollView>
+                                    <Markdown>{this.state.texto_termoUso}</Markdown>
 
-                            {/* <CheckBox
-                                title='Click Here'
-                                // checked={this.state.checked}
-                                checked={()=> {console.log('deu certo')}}
-                            /> */}
+                                </ScrollView>
 
-                            <TouchableOpacity
-                                onPress = {() => {
-                                    this.setState({ exibeModal: false });
-                                }}
-                                style = {styles.button}
-                            >
+                                <TouchableOpacity
+                                    onPress = {() => {
+                                        this.setState({ exibeModal: false });
+                                    }}
+                                    style = {styles.button}
+                                >
 
-                                <Text style = {styles.text}>Fechar</Text>
+                                    <Text style = {styles.text}>Fechar</Text>
 
-                            </TouchableOpacity>
+                                </TouchableOpacity>
 
-                        </View>
+                            </View>
 
 
-                    </Modal>
+                        </Modal>
+                    </View>
 
             </ScrollView>
 
@@ -378,14 +382,9 @@ const styles = StyleSheet.create({
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    textoModal: {
-        textAlign: 'justify',
-        color: 'black',
-        fontSize: 16,
-        fontWeight: '400',
-        lineHeight: 20,
+        marginVertical: 20,
         marginHorizontal: 10
-    }
+    },
+
 });
 

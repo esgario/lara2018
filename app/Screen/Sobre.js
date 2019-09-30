@@ -9,6 +9,7 @@ import {
     } from 'react-native';
 
 import axios from 'axios';
+import Markdown, {getUniqueID} from 'react-native-markdown-renderer';
 
 import { URL_API } from '../Utils/url_api';
 
@@ -53,7 +54,6 @@ class Sobre extends Component {
         .then (function(response) {
             console.log('NÃO DEU ERRO PEGA DESCRIÇÃO');
             texto = response.data.texto;
-
         })
         .catch (function(error){
             console.log('DEU ERRO PEGA DESCRIÇÃO');       
@@ -81,9 +81,9 @@ class Sobre extends Component {
 
                     </View>
 
-                    <View>
+                    <View style = {styles.text_Modal}>
 
-                        <Text style = {styles.text}>{this.state.texto_descricao}</Text>
+                        <Markdown>{this.state.texto_descricao}</Markdown>
 
                     </View>
 
@@ -103,12 +103,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center'
     },
-    text: {
-        textAlign: 'justify',
-        color: 'black',
-        fontSize: 16,
-        fontWeight: '400',
-        lineHeight: 20,
+    text_Modal: {
         marginHorizontal: 10
     },
     image: {

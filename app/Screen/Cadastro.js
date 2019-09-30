@@ -18,7 +18,11 @@ import {
 import { Formik } from 'formik';
 import axios from 'axios';
 import * as yup from 'yup';
+
+import * as Location from 'expo-location';
 import * as Permissions from 'expo-permissions';
+
+import Markdown from 'react-native-markdown-renderer';
 
 import StyledButton from '../Style/Button';
 
@@ -30,6 +34,7 @@ const urlCadastraUsuario = `${URL_API}/usuario`;
 const urlPegaLocalizacao = `${URL_API}/python/pegaLocalizacao`
 const urlGetTermosUso = `${URL_API}/termos/search/findByTipo`;
 
+// Formik wrapper
 const FieldWrapper = ({ children, label, formikProps, formikKey }) => (
 
     <View style = {{ marginLeft: 20, marginRight: 5, marginVertical: 5 }}>
@@ -42,7 +47,9 @@ const FieldWrapper = ({ children, label, formikProps, formikKey }) => (
 
 );
 
+// Formik Switch button
 const StyledSwitch = ({ formikKey, formikProps, label, ...rest }) => (
+
     <FieldWrapper label={label} formikKey={formikKey} formikProps={formikProps}>
         <Switch
             value={formikProps.values[formikKey]}
@@ -53,9 +60,12 @@ const StyledSwitch = ({ formikKey, formikProps, label, ...rest }) => (
             {...rest}
         />
     </FieldWrapper>
+
 );
 
+// YUP validation
 const validationSchema = yup.object().shape({
+
     nomeCompleto: yup
     .string()
     .required('Nome completo não foi informado'),
@@ -153,28 +163,17 @@ class Cadastro extends Component {
 
             this.setState({latitude: null, longitude: null})
 
-            console.log('DEU ERRO NO PEGA COORDENADAS');
+            console.log('DEU ERRO PEGA COORDENADAS');
 
         }   else {
 
-            navigator.geolocation.getCurrentPosition(
-                position => {
-    
-                    console.log('NÃO DEU ERRO NO PEGA COORDENADAS');
-                    
-                    let coord = '';
+            let location = await Location.getCurrentPositionAsync({});
 
-                    coord = position.coords.latitude + ', ' + position.coords.longitude;
+            console.log('NÃO DEU ERRO PEGA COORDENADAS');
 
-                    this.pegaLocalizacao(coord);
+            let coord = location.coords.latitude + ', ' + location.coords.longitude;
 
-                },
-                error => {
-    
-                    console.log('DEU ERRO NO PEGA COORDENADAS');
-    
-                }
-            );
+            this.pegaLocalizacao(coord);
 
         }     
 
@@ -199,14 +198,13 @@ class Cadastro extends Component {
             }
         })
         .then (function(response) {
-            console.log('NÃO DEU PEGA LOCALIZACAO');
             resp = response.data;
         })
         .catch (function(error){
             console.log('DEU ERRO PEGA LOCALIZACAO');
         })
 
-        if (resp !== ''){
+        if (resp !== '' && resp !== 'error'){
 
             // Pega o estado e cidade, caso não seja None (nulo)
             resp.split('\n')[0] === 'None' ? estado = '' : estado = resp.split('\n')[0];
@@ -214,6 +212,12 @@ class Cadastro extends Component {
 
             // Salva as variaveis globalmente
             this.setState({estado, cidade})
+
+            console.log('NÃO DEU ERRO PEGA LOCALIZACAO');
+
+        } else {
+
+            console.log('DEU ERRO PEGA LOCALIZACAO');
 
         }
 
@@ -713,7 +717,7 @@ class Cadastro extends Component {
 
                                     <ScrollView>
 
-                                        <Text style = {styles.textoModal}>{this.state.texto_termoUso}</Text>
+                                        <Markdown>{this.state.texto_termoUso}</Markdown>
 
                                     </ScrollView>
 
@@ -776,6 +780,7 @@ const fontStyle = Platform.OS === 'ios' ? 'Arial Hebrew' : 'serif';
 const switchScale = Platform.OS === 'ios' ? [{ scaleX: 1.0 }, { scaleY: 1.0 }] : [{ scaleX: 1.3 }, { scaleY: 1.3 }];
 
 const styles = StyleSheet.create({
+    
     headers: { 
         fontFamily: fontStyle,
         color: '#39b500',
@@ -827,13 +832,7 @@ const styles = StyleSheet.create({
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    textoModal: {
-        textAlign: 'justify',
-        color: 'black',
-        fontSize: 16,
-        fontWeight: '400',
-        lineHeight: 20,
+        marginVertical: 20,
         marginHorizontal: 10
     },
     button: {
