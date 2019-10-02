@@ -76,7 +76,8 @@ class Home extends Component {
 
     state = {
 
-        exibeModal: false,
+        exibe_termos_de_uso: false,
+        exibe_instrucoes_de_uso: false,
         texto_termoUso: null,
         checked: false
 
@@ -100,6 +101,10 @@ class Home extends Component {
 
             // Da seguimento no fluxo do app
             this.props.navigation.navigate('Menu', {nomeUsuario: nomeUsuario});
+
+        } else {
+
+            this.setState({exibe_instrucoes_de_uso: true});
 
         }
 
@@ -172,7 +177,7 @@ class Home extends Component {
             console.log('DEU ERRO PEGA TERMOS DE USO');       
         })
 
-        this.setState({texto_termoUso: texto, exibeModal: true});
+        this.setState({texto_termoUso: texto, exibe_termos_de_uso: true});
 
     };
 
@@ -299,7 +304,7 @@ class Home extends Component {
                 <View style = {{alignItems: 'center'}}>
 
                     <Image
-                        style = {styles.image}
+                        style = {styles.logo}
                         source = {require('./../assets/logo01_sb.png')}
                         resizeMode = 'contain'
                     />
@@ -461,13 +466,13 @@ class Home extends Component {
 
                         <Modal
                             transparent = {false}
-                            visible = {this.state.exibeModal}
+                            visible = {this.state.exibe_termos_de_uso}
                             onRequestClose = {() => {
                             console.log('Modal has been closed.');
                             }}
                         >
 
-                            <View style={styles.modalContainer}>
+                            <View style={styles.modal_termos_container}>
 
                                 <ScrollView>
 
@@ -477,7 +482,43 @@ class Home extends Component {
 
                                 <TouchableOpacity
                                     onPress = {() => {
-                                        this.setState({ exibeModal: false });
+                                        this.setState({ exibe_termos_de_uso: false });
+                                    }}
+                                    style = {styles.button}
+                                >
+
+                                    <Text style = {styles.text}>Fechar</Text>
+
+                                </TouchableOpacity>
+
+                            </View>
+
+
+                        </Modal>
+
+                        <Modal
+                            transparent = {false}
+                            visible = {this.state.exibe_instrucoes_de_uso}
+                            onRequestClose = {() => {
+                            console.log('Modal has been closed.');
+                            }}
+                        >
+
+                            <View style={styles.modal_instrucoes_container}>
+
+                                <View style = {styles.gifContainer}>
+
+                                    <Image
+                                        styles = {{height: 100, width: 100}}
+                                        source = {require('./../assets/teste.gif')}
+                                        resizeMode = 'contain'
+                                    />
+
+                                </View>
+
+                                <TouchableOpacity
+                                    onPress = {() => {
+                                        this.setState({ exibe_instrucoes_de_uso: false });
                                     }}
                                     style = {styles.button}
                                 >
@@ -550,7 +591,7 @@ const styles = StyleSheet.create({
         color: '#39b500',
         marginVertical: 10 
     },
-    image: {
+    logo: {
         width: 0.45 * screenWidth, 
         height: 0.25 * screenHeight
     },
@@ -558,7 +599,7 @@ const styles = StyleSheet.create({
         marginVertical: 20,
         transform: ([{ scaleX: 1.5 }, { scaleY: 1.5 }]),
     },
-    modalContainer: {
+    modal_termos_container: {
         flex: 1,
         flexDirection: 'column',
         justifyContent: 'center',
@@ -566,6 +607,20 @@ const styles = StyleSheet.create({
         marginVertical: 20,
         marginHorizontal: 10
     },
+    modal_instrucoes_container: {
+        flex: 1,
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginVertical: 20,
+        marginHorizontal: 20,
+        height: 100
+    },
+    gifContainer: {
+        marginHorizontal: 20,
+        marginVertical: 20,
+        height: 0.8 * screenHeight
+    }
 
 });
 
