@@ -161,15 +161,13 @@ class Menu extends Component {
 
             this.setState({latitude: null, longitude: null})
 
-            console.log('DEU ERRO NO PEGA COORDENADAS');
+            console.log('DEU ERRO PEGA COORDENADAS');
 
         }   else {
 
             let location = await Location.getCurrentPositionAsync({});
 
-            console.log('NÃO DEU ERRO NO PEGA COORDENADAS');
-
-            console.log(location);
+            console.log('NÃO DEU ERRO PEGA COORDENADAS');
 
             this.setState({latitude: location.coords.latitude, longitude: location.coords.longitude})
 

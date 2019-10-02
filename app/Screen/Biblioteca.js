@@ -27,6 +27,7 @@ const urlGetImagemByPath = `${URL_API}/imagem/search/findByPath`;
 
 // Largura tela
 const screenWidth = Math.round(Dimensions.get('window').width);
+const screenHeigth = Math.round(Dimensions.get('window').height);
 
 class Biblioteca extends Component {
 
@@ -319,7 +320,7 @@ class Biblioteca extends Component {
             <View style = {styles.listContainer}>               
 
                 <TouchableOpacity
-                    onPress = {() => this.props.navigation.navigate('Visualiza', {imgPath: item.path})}
+                    onPress = {() => this.props.navigation.navigate('Visualiza', {img_path: item.path})}
                 >
                     <View style = {styles.listSubContainer}>
 
@@ -327,7 +328,7 @@ class Biblioteca extends Component {
                             <TouchableOpacity 
                                 onPress = {() => this.setState({ 
                                     exibeImagem: true,
-                                    uriImagemModal: `${urlGetImagem}?nomeImg=${item.path}&nomeApp=eFarmer&largura=${screenWidth}`
+                                    uriImagemModal: `${urlGetImagem}?nomeImg=${item.path}&nomeApp=eFarmer&largura=${screenHeigth}`
                                     }
                                 )}
                             >
@@ -376,7 +377,7 @@ class Biblioteca extends Component {
      * @author Pedro Biasutti
      * @param path - nome da imagem a ser deletada
      */
-    RightActions = (path) =>(
+    RightActions = (path) => (
 
             <View style = {styles.rigthActions}>
                 

@@ -16,7 +16,7 @@ import { Formik } from 'formik';
 import * as yup from 'yup';
 import { ScrollView } from 'react-native-gesture-handler';
 import axios from 'axios';
-import Markdown from 'react-native-markdown-renderer';
+import Markdown, {getUniqueID} from 'react-native-markdown-renderer';
 
 import { URL_API } from '../Utils/url_api';
 
@@ -39,6 +39,22 @@ const validationSchema = yup.object().shape({
     .required('Senha não foi informada')
     .label('senha')
 });
+
+// MarkDown rules
+const rules = {
+    heading1: (node, children, parent, styles) =>
+        <Text key={getUniqueID()} style={[styles.heading, styles.heading1]}>
+            [{children}]    
+        </Text>,
+    heading2: (node, children, parent, styles) =>
+        <Text key={getUniqueID()} style={[styles.heading, styles.heading2]}>
+            [{children}]
+        </Text>,
+    heading3: (node, children, parent, styles) =>
+        <Text key={getUniqueID()} style={[styles.heading, styles.heading3]}>
+            [{children}]
+        </Text>,
+};
 
 class Home extends Component {
 
@@ -154,10 +170,8 @@ class Home extends Component {
                 <Formik
 
                     initialValues = {{
-                        // nomeUsuario: '',
-                        // senha: ''
-                        nomeUsuario: 'pedrobiasutti',
-                        senha: 'asdasd'
+                        nomeUsuario: '',
+                        senha: ''
                     }}
 
                     onSubmit = { async (values, actions) => {
@@ -292,7 +306,7 @@ class Home extends Component {
 
                                 <ScrollView>
 
-                                    <Markdown>{this.state.texto_termoUso}</Markdown>
+                                    <Markdown rules={rules}>{this.state.texto_termoUso}</Markdown>
 
                                 </ScrollView>
 
@@ -375,7 +389,8 @@ const styles = StyleSheet.create({
         height: 0.25 * screenHeight
     },
     activity : {
-        marginTop: 10
+        marginVertical: 20,
+        transform: ([{ scaleX: 1.5 }, { scaleY: 1.5 }]),
     },
     modalContainer: {
         flex: 1,

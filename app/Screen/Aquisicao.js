@@ -93,13 +93,13 @@ class Aquisicao extends Component {
             }
         })
         .then (function(response) {
-            console.log('NÃO DEU ERRO NO GET USUARIO');
+            console.log('NÃO DEU ERRO GET USUARIO');
             urlUsr = response.data._links.self.href;
             nomeCompleto = response.data.nomeCompleto;
             validation = true;
         })
         .catch (function(error){
-            console.log('DEU ERRO NO GET USUARIO');
+            console.log('DEU ERRO GET USUARIO');
         })
 
         if (validation) {
@@ -121,9 +121,7 @@ class Aquisicao extends Component {
      */
     gerenciaResizeImg = async (image) => {
 
-        console.log('this.gerenciaResizeImg');
-
-        const max_size = 2048;
+        const max_size = 1024;
 
         if (image.width >= image.heigth){
 
@@ -156,8 +154,6 @@ class Aquisicao extends Component {
      */
     resizeImage = async (image, img_width, img_height) => {
 
-        console.log('this.resizeImage');
-
         let size = {};
         
         if (img_height != null){
@@ -180,8 +176,7 @@ class Aquisicao extends Component {
     };
     
     /**
-     * Método para fazer o upload da imagem tanto no sevidor quanto no banco de dados.
-     * Além disso, salva um arquivo .txt com os pontos selecionados na imagem
+     * Método para fazer gerenciar o upload da imagem tanto no sevidor quanto no banco de dados.
      * @author Pedro Biasutti
      */
     uploadimage = async () => {
@@ -307,11 +302,11 @@ class Aquisicao extends Component {
             }
         })
         .then (response => {
-            console.log('NÃO DEU ERRO NO SALVAR IMAGEM SERVIDOR');
+            console.log('NÃO DEU ERRO SALVA IMAGEM SERVIDOR');
             status = true;
         })
         .catch (error => {
-            console.log('DEU ERRO NO SALVAR IMAGEM SERVIDOR');
+            console.log('DEU ERRO SALVA IMAGEM SERVIDOR');
         })
 
         return status;

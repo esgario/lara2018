@@ -13,9 +13,9 @@ import {
 
 import axios from 'axios';
 
-import { URL_API } from '../Utils/url_api';
-
 import Markdown, {getUniqueID} from 'react-native-markdown-renderer';
+
+import { URL_API } from '../Utils/url_api';
 
 // Http request
 const urlGetImagem = `${URL_API}/imagem/baixar`;
@@ -62,14 +62,14 @@ class Resultado extends Component {
     state = {
 
         nomeUsuarioLogado: '',
-        nomeCompletoLogado: '',
         image: '',
         imagePath: '',
         uriImg: '',
         resultado: false,
-        textoPython: '',
+        texto_resposta: '',
         textoModelo: '',
-        result_status: ''
+        result_status: '',
+        jo_id: ''
 
     };
 
@@ -102,10 +102,7 @@ class Resultado extends Component {
      */
     criaRequisicao = async (imagemPath) => {
 
-        console.log('criaRequisicao');
-        console.log('imagemPath',imagemPath);
-
-        let resposta = 'error';
+        let job_id = 'error';
         
         await axios({
             method: 'get',
@@ -116,19 +113,17 @@ class Resultado extends Component {
             }
         })
         .then (function(response) {
-            console.log('response.data',response.data);
             console.log('NÃO DEU ERRO CRIA REQUISIÇÃO');
-            resposta = response.data;
+            job_id = response.data;
         })
         .catch (function(error){
-            console.log(error);
             console.log('DEU ERRO CRIA REQUISIÇÃO');     
         })
 
-        if ( resposta !== 'error') {
+        if ( job_id !== 'error') {
 
-            console.log('resposta',resposta);
-            this.gerenciaChecaResult(resposta);
+            this.setState({job_id: job_id})
+            this.gerenciaChecaResult(job_id,imagemPath);
 
         } else {
 
@@ -143,48 +138,42 @@ class Resultado extends Component {
      * @author Pedro Biasutti
      * @param imagePath - path da imagem
      */
-    checaResultado = async (job_id) => {
+    checaResultado = async (job_id, imagemPath) => {
 
         let resp = 'error';        
-
-        console.log('veio no checaResult');
 
         await axios({
             method: 'get',
             url: urlChecaResultado,
             params: {
-                job_id: job_id
+                job_id: job_id,
+                img_path: imagemPath
             }
         })
         .then (function(response) {
-            console.log('NÃO DEU CHECA RESULTADO');
-            console.log('response.data',response.data);
+            console.log('NÃO DEU ERRO CHECA RESULTADO');
             resp = response.data;
         })
         .catch (function(error){
             console.log('DEU ERRO CHECA RESULTADO');           
         })
 
-        // if ( resp !== 'error' && resp !== '') {
         if ( resp !== 'error') {
 
             if (resp == 'processando') {
 
-                console.log(resp);
                 this.setState({result_status: resp});
+
+                return '';
 
             } else {
 
                 outImgPath = this.state.imagePath.replace('.png','_output.png');
                 uriImg = `${urlGetImagem}?nomeImg=${outImgPath}&nomeApp=eFarmer`;
-
-                console.log('resp', resp);
-                console.log('uriImg',uriImg);
     
-                this.setState({result_status: 'completo', textoPython: resp, uriImg: uriImg});
+                this.setState({result_status: 'completo', texto_resposta: resp, uriImg: uriImg});
 
-                console.log('this.state.textoPython 001', this.state.textoPython);
-                console.log('this.state.uriImg 001', this.state.uriImg);
+                return resp
 
             }
 
@@ -192,20 +181,23 @@ class Resultado extends Component {
 
             console.log('DEU ERRO RESPOSTA CHECA RESULTADO');
 
+            return '';
+
         }
 
     };
 
-    gerenciaChecaResult = async (job_id) => {
+    gerenciaChecaResult = async (job_id, img_path) => {
         
         let count = 0;
         let result = '';
+        let resposta = ''
 
-        while (count <10 && this.state.textoPython == ''){
+        while (count <10 && resposta == '') {
 
-            console.log(`Tentativa numero: ${count}`);
+            console.log(`Tentativa número: ${count + 1}`);
 
-            await this.checaResultado(job_id);
+            resposta = await this.checaResultado(job_id, img_path);
 
             // Função para forcar delay
             await this.performTimeConsumingTask(3000);
@@ -214,10 +206,9 @@ class Resultado extends Component {
 
         }
 
-        if (count = 10 && this.state.textoPython == '') {
+        if (count = 10 && resposta == '') {
 
             let texto = 'O número de tentativas excedeu o permitido. Tente novamente'
-
 
             // Caso confirmado, vai para pagina o menu
             Alert.alert(
@@ -236,8 +227,7 @@ class Resultado extends Component {
 
         }
 
-        result = this.state.textoPython;
-        console.log('this.state.textoPython',result);
+        result = this.state.texto_resposta;
         
         this.analizaResposta(result);
 
@@ -259,7 +249,7 @@ class Resultado extends Component {
 
         );
 
-    }
+    };
 
     /**
      * Método para pegar o retorno do codigo que processas o dados e analizar para os 3 tipos de respostas
@@ -381,15 +371,15 @@ class Resultado extends Component {
 
                                 </View>
 
-                                    <View style = {styles.markdown}>
+                                <View style = {styles.markdown}>
 
-                                        <ScrollView>
+                                    <ScrollView>
 
-                                            <Markdown rules={rules}>{this.state.textoModelo}</Markdown>
+                                        <Markdown rules={rules}>{this.state.textoModelo}</Markdown>
 
-                                        </ScrollView>
+                                    </ScrollView>
 
-                                    </View>
+                                </View>
 
                                 <TouchableOpacity
                                     style = {styles.button}
