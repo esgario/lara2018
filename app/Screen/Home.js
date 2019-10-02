@@ -9,14 +9,16 @@ import { StyleSheet,
         TextInput,
         ActivityIndicator,
         Dimensions,
-        Modal
+        Modal,
+        ScrollView,
+        AsyncStorage
     } from 'react-native';
 
 import { Formik } from 'formik';
 import * as yup from 'yup';
-import { ScrollView } from 'react-native-gesture-handler';
 import axios from 'axios';
 import Markdown, {getUniqueID} from 'react-native-markdown-renderer';
+import { CheckBox } from 'react-native-elements'
 
 import { URL_API } from '../Utils/url_api';
 
@@ -77,6 +79,29 @@ class Home extends Component {
         exibeModal: false,
         texto_termoUso: null,
         checked: false
+
+    };
+
+    /**
+     * Método para verificar na memória se as variáveis de log foram salvas, assim que montar a tela
+     * @author Pedro Biasutti
+     */
+    async componentDidMount() {
+
+        let nomeUsuario = '';
+        let senha = '';
+
+        // Procura as variáveis na memória
+        nomeUsuario = await this._retrieveData('nomeUsuario');
+        senha = await this._retrieveData('senha');
+
+        // Se estiver ok quer dizer que o usuário está salvo (e já foi feita validação no servidor)
+        if (nomeUsuario != 'erro' && senha != 'erro') {
+
+            // Da seguimento no fluxo do app
+            this.props.navigation.navigate('Menu', {nomeUsuario: nomeUsuario});
+
+        }
 
     };
 
@@ -151,6 +176,120 @@ class Home extends Component {
 
     };
 
+    /**
+     * Método para fazer a tomada de decisão entre salvar o apagar log in da memória
+     * @author Pedro Biasutti
+     * @param values - valores do formulário (nomeUsuario e senha)
+     * @param checked - status do checkbox
+     */
+    gerenciaLogIn = async (values, checked) => {
+
+        const nomeUsuario = values.nomeUsuario;
+        const senha = values.senha;
+
+        if (checked) {
+
+            await this._storeData('nomeUsuario', nomeUsuario);
+            await this._storeData('senha', senha);
+
+        } else {
+
+            await this.apagaLogIn();
+
+        }
+
+    };
+
+    /**
+     * Método para apagar as variáveis do log in da memória
+     * @author Pedro Biasutti
+     */
+    apagaLogIn = async () => {
+
+        await this._removeData('nomeUsuario');
+        await this._removeData('senha');
+
+    };
+
+    /**
+     * Método para salvar variável na memória do celular
+     * @author Pedro Biasutti
+     * @param storage_Key - chave de acesso (nome a ser salvo)
+     * @param value - valor da variável
+     */
+    _storeData = async (storage_Key, value) => {
+
+        try {
+
+            await AsyncStorage.setItem(storage_Key, value);
+
+            console.log('NÃO DEU ERRO SALVA NA MEMÓRIA');
+
+        } catch (error) {
+
+            console.log('DEU ERRO SALVA NA MEMÓRIA');
+
+        }
+
+    };
+      
+    /**
+     * Método para acessar variável salva na memória do celular
+     * @author Pedro Biasutti
+     * @param storage_Key - chave de acesso (nome salvo)
+     */
+    _retrieveData = async (storage_Key) => {
+
+        try {
+
+            const value = await AsyncStorage.getItem(storage_Key);
+
+            if(value !== null) {
+
+                console.log('NÃO DEU ERRO PEGA DA MEMÓRIA');
+
+                return value;
+
+            } else {
+
+                console.log('DEU ERRO PEGA DA MEMÓRIA');
+                console.log('VALOR NULO');
+
+                return 'erro';
+
+            }
+
+        } catch (error) {
+
+            console.log('DEU ERRO PEGA DA MEMÓRIA');
+
+            return 'erro';
+
+        }
+
+    };
+    
+    /**
+     * Método para remover variável salva na memória do celular
+     * @author Pedro Biasutti
+     * @param storage_Key - chave de acesso (nome salvo)
+     */
+    _removeData = async (storage_Key) => {
+
+        try {
+
+            await AsyncStorage.removeItem(storage_Key);
+
+            console.log('NÃO DEU ERRO REMOVE DA MEMÓRIA');
+
+        } catch (error) {
+
+            console.log('DEU ERRO REMOVE DA MEMÓRIA');
+
+        }
+
+    };
+
     render () {
 
         return (
@@ -183,9 +322,16 @@ class Home extends Component {
 
                         if (validation === 5) {
 
+                            // fazer teste com formikprops.values para limpar o q foi digitado
                             this.props.navigation.navigate('Menu', {nomeUsuario: values.nomeUsuario});
 
+                        } else {
+
+                            // Garante que só é salvo credenciais válidas na memória
+                            await this.apagaLogIn();
+
                         }
+
                     }}
                     // validateOnBlur= {false}
                     validateOnChange = {false}
@@ -245,6 +391,23 @@ class Home extends Component {
 
                             </View>
 
+                            <View style = {{marginHorizontal: 10, marginVertical: -10}}>
+
+                                <CheckBox
+                                    left
+                                    title='Salvar Log in'
+                                    checked={this.state.checked}
+                                    onPress={() => {
+                                        this.setState({checked: !this.state.checked});
+                                        this.gerenciaLogIn(formikProps.values,!this.state.checked);
+                                        }
+                                    }
+                                    textStyle = {{fontSize: 16, fontWeight: '600'}}
+                                    containerStyle = {{backgroundColor: 'white', borderColor: 'white'}}
+                                />
+                                
+                            </View>
+
                             <View style = {{alignItems: 'center'}}>
 
                                 <Text style = {styles.hiperlink}
@@ -256,7 +419,9 @@ class Home extends Component {
                                 {formikProps.isSubmitting ? (
 
                                     <View style = {styles.activity}>
+
                                         <ActivityIndicator/>
+                                        
                                     </View>
 
                                     ) : (
@@ -325,6 +490,7 @@ class Home extends Component {
 
 
                         </Modal>
+
                     </View>
 
             </ScrollView>
@@ -374,7 +540,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: '#f2f2f2',
         height: 50,
-        marginVertical: 15,
+        marginVertical: 5,
         marginHorizontal: 20
     },
     hiperlink: {

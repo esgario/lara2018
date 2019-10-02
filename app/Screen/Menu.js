@@ -56,6 +56,7 @@ class Menu extends Component {
         const nomeUsuario = navigation.getParam('nomeUsuario', 'erro nomeUsuario');
 
         this.setState({nomeUsuarioLogado: nomeUsuario});
+
     };
 
     /**
@@ -239,7 +240,7 @@ class Menu extends Component {
 
                     <TouchableOpacity 
                         style={styles.sideButton}
-                        onPress = {() => this.props.navigation.navigate('Home')}
+                        onPress = {() => this.props.navigation.navigate('LogOut')}
                     >   
                         <Icon name = 'sign-out' size={30} color="#2b2c2d"/>
                     </TouchableOpacity>  

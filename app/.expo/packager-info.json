@@ -3,8 +3,8 @@
   "expoServerPort": null,
   "packagerPort": null,
   "packagerPid": null,
-  "expoServerNgrokUrl": null,
-  "packagerNgrokUrl": null,
-  "ngrokPid": null,
+  "expoServerNgrokUrl": "https://he-c3h.pedrobiasutti.app.exp.direct",
+  "packagerNgrokUrl": "https://packager.he-c3h.pedrobiasutti.app.exp.direct",
+  "ngrokPid": 24596,
   "webpackServerPort": null
 }
