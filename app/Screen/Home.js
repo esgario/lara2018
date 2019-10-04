@@ -506,15 +506,10 @@ class Home extends Component {
 
                             <View style={styles.modal_instrucoes_container}>
 
-                                <View style = {styles.gifContainer}>
-
-                                    <Image
-                                        styles = {{height: 100, width: 100}}
-                                        source = {require('./../assets/teste.gif')}
-                                        resizeMode = 'contain'
-                                    />
-
-                                </View>
+                                <Image 
+                                    source = {require('./../assets/teste.gif')}
+                                    style={styles.gif} 
+                                />
 
                                 <TouchableOpacity
                                     onPress = {() => {
@@ -609,18 +604,16 @@ const styles = StyleSheet.create({
     },
     modal_instrucoes_container: {
         flex: 1,
-        flexDirection: 'column',
-        justifyContent: 'center',
         alignItems: 'center',
+        justifyContent: 'center',
         marginVertical: 20,
         marginHorizontal: 20,
-        height: 100
     },
-    gifContainer: {
-        marginHorizontal: 20,
-        marginVertical: 20,
-        height: 0.8 * screenHeight
+    gif: {
+        width: 0.9 * screenWidth,
+        height: 0.9 * screenWidth
     }
+
 
 });
 
