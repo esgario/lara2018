@@ -496,7 +496,7 @@ class Home extends Component {
 
                         </Modal>
 
-                        <Modal
+                        {/* <Modal
                             transparent = {false}
                             visible = {this.state.exibe_instrucoes_de_uso}
                             onRequestClose = {() => {
@@ -525,7 +525,7 @@ class Home extends Component {
                             </View>
 
 
-                        </Modal>
+                        </Modal> */}
 
                     </View>
 

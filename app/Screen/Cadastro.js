@@ -328,6 +328,9 @@ class Cadastro extends Component {
         await axios({
             method: 'post',
             url: urlCadastraUsuario,
+            headers: {
+                'Content-Type': 'application/json'
+            },
             data: {
                 nomeCompleto: values.nomeCompleto,
                 nomeUsuario: values.nomeUsuario,
@@ -335,21 +338,20 @@ class Cadastro extends Component {
                 estado: values.estado,
                 cidade: values.cidade,
                 senha: values.senha,
-                apto: 'true',
+                apto: true,
                 papel: 'USER'
             }
         })
         .then (function(response) {
             console.log('NÃO DEU ERRO SING UP');
             httpStatus = response.status;
+            console.log(response.data);
         })
         .catch (function(error){
             console.log('DEU ERRO SING UP');
         })
-
-        this.setState({httpStatusG: httpStatus})
         
-        if (this.state.httpStatusG === 201) {
+        if (httpStatus === 201) {
 
             var texto = 'Conta criada com sucesso.\n\n' +
             'Ao pressionar "ok" o App o direcionará para pagina principal\n\n'
