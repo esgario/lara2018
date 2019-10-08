@@ -18,13 +18,11 @@ import { ScrollView } from 'react-native-gesture-handler';
 import axios from 'axios';
 import { URL_API } from '../Utils/url_api';
 
-// const urlGetEmail = 'http://192.168.0.160:8080/api/usuario/search/findByEmail';
-// const urlPost = `http://192.168.0.160:8080/api-aberta/recuperar-senha?`; // VER ESSA QUESTAO DE API-ABERTA, N VI NECESSIDADE
-
 const urlGetEmail = `${URL_API}/usuario/search/findByEmail`;
-const urlPost = `http://192.168.0.160:8080/api-aberta/recuperar-senha?`; // VER ESSA QUESTAO DE API-ABERTA, N VI NECESSIDADE
+const urlPost = `${URL_API}-aberta/recuperar-senha?`; // VER ESSA QUESTAO DE API-ABERTA, N VI NECESSIDADE
 
 const validationSchema = yup.object().shape({
+
     senhaAntiga: yup
     .string()
     .required('Senha não foi informada')
@@ -41,13 +39,16 @@ const validationSchema = yup.object().shape({
     .test('senhas-match', 'Senhas não conferem', function(value) {
         return this.parent.senhaNova === value;
     }),
+
 });
 
 const validationSchema2 = yup.object().shape({
+
     emailRecuperacao: yup
     .string()
     .required('Email não foi informado')
     .email()
+    
 });
 
 class RecuperarSenha extends Component {

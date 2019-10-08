@@ -370,7 +370,7 @@ class Cadastro extends Component {
         
         } else {
 
-            this.geraAlerta('ERRO 01: \n\nProlema de comunicação com o servidor.\n\nCaso o problema persista, favor entrar em contato com a equipe técnica.');   
+            this.geraAlerta('ERRO 01: \n\nProblema de comunicação com o servidor.\n\nCaso o problema persista, favor entrar em contato com a equipe técnica.');   
 
         }
 
