@@ -368,6 +368,10 @@ class Cadastro extends Component {
                 { cancelable: false }
             );
         
+        } else {
+
+            this.geraAlerta('ERRO 01: \n\nProlema de comunicação com o servidor.\n\nCaso o problema persista, favor entrar em contato com a equipe técnica.');   
+
         }
 
     };
