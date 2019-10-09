@@ -19,7 +19,7 @@ import axios from 'axios';
 import { URL_API } from '../Utils/url_api';
 
 const urlGetEmail = `${URL_API}/usuario/search/findByEmail`;
-const urlPost = `${URL_API}-aberta/recuperar-senha?`; // VER ESSA QUESTAO DE API-ABERTA, N VI NECESSIDADE
+const urlPost = `${URL_API}-aberta/recuperar-senha`; // VER ESSA QUESTAO DE API-ABERTA, N VI NECESSIDADE
 
 const validationSchema = yup.object().shape({
 
@@ -91,13 +91,13 @@ class RecuperarSenha extends Component {
             }
         })
         .then (function(response) {
-            // console.warn(response.data);
+            console.log('NÃO DEU ERRO PEGA USUARIO POR EMAIL')
             urlPatch = response.data._links.self.href;
             validation = 7;
 
         })
-        .catch (function(error){
-            // console.warn(error);
+        .catch (function(error) {
+            console.log('DEU ERRO PEGA USUARIO POR EMAIL')
         })
 
         if ( validation === 7 ) {
@@ -136,14 +136,13 @@ class RecuperarSenha extends Component {
         })
         .then (function(response) {
             console.log('NÃO DEU ERRO ALTERA SENHA');
-            // console.warn(response.status);
-            console.log('Http status: ',response.status);
             httpStatus = response.status;
 
         })
         .catch (function(error){
             console.log('DEU ERRO ALTERA SENHA');
-            // console.warn(error.request.status);            
+            console.warn(error.request.status);
+            console.warn(error);            
         })
 
         actions.setSubmitting(false);

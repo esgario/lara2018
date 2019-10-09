@@ -29,6 +29,7 @@ const screenHeight = Math.round(Dimensions.get('window').height);
 // Http request
 const urlGetLogIn = `${URL_API}/usuario/verificaLogin?`;
 const urlGetTermosUso = `${URL_API}/termos/search/findByTipo`;
+const urlACK = `${URL_API}/ack/teste`;
 
 // YUP validation
 const validationSchema = yup.object().shape({
@@ -460,6 +461,12 @@ class Home extends Component {
                         onPress = {() => this.temosUso()}
                     >
                     Termos de uso
+                    </Text>
+
+                    <Text style = {[styles.hiperlink, {marginBottom: 20}]}
+                        onPress = {() => this.ack()}
+                    >
+                    Teste ACK
                     </Text>
 
                     <View>
