@@ -19,7 +19,7 @@ from torch.nn.utils.clip_grad import clip_grad_norm_
 from utils.augmentation import between_class, mixup_data, mixup_criterion
 from utils.customdatasets import CoffeeLeavesDataset
 from utils.utils import static_graph, plot_confusion_matrix
-from net_models import shallow, resnet34, resnet50, resnet101, alexnet, googlenet, vgg16
+from net_models import shallow, resnet34, resnet50, resnet101, alexnet, googlenet, vgg16, mobilenet_v2
 
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.metrics import confusion_matrix
@@ -27,7 +27,7 @@ from sklearn.metrics import confusion_matrix
 import pickle
 import math
 
-clf_label = [ 'leaf_multitask' , 'leaf_stress', 'leaf_severity', 'symptom' ]
+clf_label = [ 'leaf_multitask' , 'leaf_disease', 'leaf_severity', 'symptom' ]
 
 def cnn_model(model_name, pretrained=False, num_classes=(5, 5)):
     if model_name == 'shallow':
@@ -50,6 +50,9 @@ def cnn_model(model_name, pretrained=False, num_classes=(5, 5)):
     
     if model_name == 'vgg16':
         model = vgg16(pretrained=pretrained, num_classes=num_classes)
+        
+    if model_name == 'mobilenet_v2':
+        model = mobilenet_v2(pretrained=pretrained, num_classes=num_classes)
     
     if torch.cuda.is_available():
         model.cuda()
