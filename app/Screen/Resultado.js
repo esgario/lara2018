@@ -8,7 +8,8 @@ import {
     Alert,
     Image,
     ScrollView,
-    Dimensions
+    Dimensions,
+    Modal
 } from 'react-native';
 
 import axios from 'axios';
@@ -69,7 +70,8 @@ class Resultado extends Component {
         texto_resposta: '',
         textoModelo: '',
         result_status: '',
-        jo_id: ''
+        jo_id: '',
+        img_loading: false
 
     };
 
@@ -110,6 +112,9 @@ class Resultado extends Component {
             params: {
                 path: imagemPath,
                 algoritmo: 'coffee'
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -148,6 +153,9 @@ class Resultado extends Component {
             params: {
                 job_id: job_id,
                 img_path: imagemPath
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -312,6 +320,9 @@ class Resultado extends Component {
             url: urlPegaModeloResultado,
             params: {
                 nomeApp: nomeApp,
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -366,10 +377,28 @@ class Resultado extends Component {
                                     <Image
                                         source = {{uri: this.state.uriImg}}
                                         resizeMode = 'contain'
-                                        style = {styles.image}  
+                                        style = {styles.image}
+                                        onLoadStart = {() => this.setState({img_loading: true})}
+                                        onLoadEnd = {() => this.setState({img_loading: false})}  
                                     />
 
                                 </View>
+
+                                <Modal
+                                    transparent = {true}
+                                    visible = {this.state.img_loading}
+                                    onRequestClose = {() => {
+                                    console.log('Modal has been closed.');
+                                    }}
+                                >
+
+                                    <View style = {styles.activity}>
+
+                                        <ActivityIndicator/>
+
+                                    </View>
+
+                                </Modal>
 
                                 <View style = {styles.markdown}>
 

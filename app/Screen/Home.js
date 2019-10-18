@@ -11,12 +11,14 @@ import { StyleSheet,
         Dimensions,
         Modal,
         ScrollView,
-        AsyncStorage
+        AsyncStorage,
+        Alert
     } from 'react-native';
 
 import { Formik } from 'formik';
 import * as yup from 'yup';
 import axios from 'axios';
+
 import Markdown, {getUniqueID} from 'react-native-markdown-renderer';
 import { CheckBox } from 'react-native-elements'
 
@@ -29,7 +31,7 @@ const screenHeight = Math.round(Dimensions.get('window').height);
 // Http request
 const urlGetLogIn = `${URL_API}/usuario/verificaLogin?`;
 const urlGetTermosUso = `${URL_API}/termos/search/findByTipo`;
-const urlACK = `${URL_API}/ack/teste`;
+// const urlACK = `${URL_API}/ack/teste`;
 
 // YUP validation
 const validationSchema = yup.object().shape({
@@ -126,6 +128,9 @@ class Home extends Component {
             params: {
                 nomeUsuario: values.nomeUsuario,
                 senha: values.senha
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -166,7 +171,7 @@ class Home extends Component {
                 tipo: 'termos-de-uso',
             },
             headers: { 
-                'Cache-Control': 'no-store',
+                'Cache-Control': 'no-store'
             }
         })
         .then (function(response) {
@@ -175,10 +180,21 @@ class Home extends Component {
 
         })
         .catch (function(error){
-            console.log('DEU ERRO PEGA TERMOS DE USO');       
+            console.log('DEU ERRO PEGA TERMOS DE USO');
+            // console.warn(error);
+            // console.warn(error.status);
+            texto = error.status;
         })
 
-        this.setState({texto_termoUso: texto, exibe_termos_de_uso: true});
+        if (texto !== undefined) {
+            
+            this.setState({texto_termoUso: texto, exibe_termos_de_uso: true});
+
+        } else {
+
+            this.geraAlerta('ERRO 01: \n\nProblema de comunicação com o servidor.\n\nCaso o problema persista, favor entrar em contato com a equipe técnica.');   
+
+        }       
 
     };
 
@@ -294,6 +310,25 @@ class Home extends Component {
 
         }
 
+    };
+
+    /**
+     * Método para exibir um alerta customizado
+     * @author Pedro Biasutti
+     */
+    geraAlerta = (textoMsg) => {
+
+        var texto = textoMsg
+
+        Alert.alert(
+            'Atenção',
+            texto,
+            [
+                {text: 'OK'},
+              ],
+            { cancelable: false }
+        );
+        
     };
 
     render () {
@@ -461,12 +496,6 @@ class Home extends Component {
                         onPress = {() => this.temosUso()}
                     >
                     Termos de uso
-                    </Text>
-
-                    <Text style = {[styles.hiperlink, {marginBottom: 20}]}
-                        onPress = {() => this.ack()}
-                    >
-                    Teste ACK
                     </Text>
 
                     <View>

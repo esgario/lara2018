@@ -10,7 +10,6 @@ import Aquisicao from './Screen/Aquisicao';
 import LogOut from './Screen/LogOut';
 import Sobre from './Screen/Sobre';
 import Biblioteca from './Screen/Biblioteca';
-import Tratamento from './Screen/Tratamento';
 import Visualiza from './Screen/Visualiza';
 import Resultado from './Screen/Resultado';
 
@@ -39,7 +38,6 @@ const AppStackNavigator = createStackNavigator({
   LogOut: LogOut,
   Sobre: Sobre,
   Biblioteca: Biblioteca,
-  Tratamento: Tratamento,
   Visualiza: Visualiza,
   Resultado: Resultado
   },

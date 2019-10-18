@@ -8,26 +8,25 @@
     "eject": "expo eject"
   },
   "dependencies": {
-    "@vietkidz/react-native-image-progress": "^1.1.0",
     "axios": "^0.19.0",
-    "expo": "^33.0.0",
-    "expo-cli": "^3.1.2",
+    "expo": "^33.0.7",
     "expo-constants": "~5.0.1",
-    "formik": "^1.5.7",
+    "formik": "^1.5.8",
+    "global": "^4.4.0",
     "punycode": "^2.1.1",
     "react": "16.8.3",
-    "react-dom": "^16.8.6",
+    "react-dom": "^16.10.2",
     "react-native": "https://github.com/expo/react-native/archive/sdk-33.0.0.tar.gz",
-    "react-native-elements": "^1.2.3",
+    "react-native-elements": "^1.2.6",
     "react-native-markdown-renderer": "^3.2.8",
-    "react-native-svg": "^9.4.0",
-    "react-native-vector-icons": "^6.5.0",
-    "react-native-web": "^0.11.4",
-    "react-navigation": "^3.11.0",
+    "react-native-svg": "~9.4.0",
+    "react-native-vector-icons": "^6.6.0",
+    "react-native-web": "^0.11.7",
+    "react-navigation": "^3.13.0",
     "yup": "^0.27.0"
   },
   "devDependencies": {
-    "babel-preset-expo": "^5.1.1"
+    "babel-preset-expo": "^5.2.0"
   },
   "private": true
 }

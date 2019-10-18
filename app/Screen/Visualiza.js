@@ -6,6 +6,7 @@ import {
         ScrollView,
         ActivityIndicator,
         Dimensions,
+        Modal
     } from 'react-native';
 
 import axios from 'axios';
@@ -59,7 +60,8 @@ class Visualiza extends Component {
 
         img_path: '',
         textoModelo: '',
-        resultado: false
+        resultado: false,
+        img_loading: false
 
     };
 
@@ -73,9 +75,6 @@ class Visualiza extends Component {
         let img_path = navigation.getParam('img_path', 'erro img_path');        
 
         this.setState({img_path: img_path.replace('.png','_output.png')});
-
-        console.log("this.state.img_path", this.state.img_path);
-        console.log("img_path", img_path);
 
         await this.checaResultado(img_path);
 
@@ -105,8 +104,6 @@ class Visualiza extends Component {
         .catch (function(error){
             console.log('DEU ERRO CHECA RESULTADO');     
         })
-
-        console.log("resposta", resposta);
 
         await this.analizaResposta(resposta);
 
@@ -153,8 +150,6 @@ class Visualiza extends Component {
             }
 
         }
-
-        console.log(modeloResp);
 
         this.setState({resultado: true, textoModelo: modeloResp});
 
@@ -206,11 +201,29 @@ class Visualiza extends Component {
 
                         <Image
                             style = {styles.image}
-                            source = {{uri: `${urlGetImagem}?nomeImg=${this.state.img_path}&nomeApp=eFarmer&altura=${screenHeigth}`}}
+                            source = {{uri: `${urlGetImagem}?nomeImg=${this.state.img_path}&nomeApp=eFarmer&altura=${10*screenHeigth}`}}
                             resizeMode = 'contain'
+                            onLoadStart = {() => this.setState({img_loading: true})}
+                            onLoadEnd = {() => this.setState({img_loading: false})}
                         />
 
-                    </View>
+                    </View>                    
+
+                    <Modal
+                        transparent = {true}
+                        visible = {this.state.img_loading}
+                        onRequestClose = {() => {
+                        console.log('Modal has been closed.');
+                        }}
+                    >
+
+                        <View style = {styles.activity}>
+
+                            <ActivityIndicator/>
+
+                        </View>
+
+                    </Modal>
 
                     <View style = {styles.markdownContainer}>
 
@@ -301,5 +314,3 @@ const styles = StyleSheet.create({
     
 
 });
-
-

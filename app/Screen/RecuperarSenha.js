@@ -88,6 +88,9 @@ class RecuperarSenha extends Component {
             url: urlGetEmail,
             params: {
                 email: values.emailRecuperacao,
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -132,6 +135,9 @@ class RecuperarSenha extends Component {
             url: urlPost,
             data: {
                 email: email,
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -185,6 +191,9 @@ class RecuperarSenha extends Component {
             url: this.state.urlPatch,
             data: {
                 senha: values.senhaNova,
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {

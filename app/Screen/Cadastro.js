@@ -169,7 +169,7 @@ class Cadastro extends Component {
 
             let location = await Location.getCurrentPositionAsync({});
 
-            console.log('NÃO DEU ERRO PEGA COORDENADAS');
+            console.log(location);
 
             let coord = location.coords.latitude + ', ' + location.coords.longitude;
 
@@ -195,13 +195,18 @@ class Cadastro extends Component {
             url: urlPegaLocalizacao,
             params: {
                 coord: coord,
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
             resp = response.data;
+            console.log(resp);
         })
         .catch (function(error){
             console.log('DEU ERRO PEGA LOCALIZACAO');
+            console.log(error);
         })
 
         if (resp !== '' && resp !== 'error'){
@@ -249,6 +254,9 @@ class Cadastro extends Component {
             params: {
                 dados: values,
                 nomeUsuarioAntigo: this.state.nomeUsuarioLogado
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -329,7 +337,8 @@ class Cadastro extends Component {
             method: 'post',
             url: urlCadastraUsuario,
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-store',
             },
             data: {
                 nomeCompleto: values.nomeCompleto,

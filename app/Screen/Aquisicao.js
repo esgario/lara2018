@@ -90,6 +90,9 @@ class Aquisicao extends Component {
             url: urlGetNomeUsuario,
             params: {
                 nomeUsuario: nomeUsuarioLogado,
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -222,6 +225,10 @@ class Aquisicao extends Component {
         
                     let statusLinkaImagem = false;
 
+                    // Trocando http por https
+                    urlImg.includes('http://') ? urlImg = urlImg.replace('http://','https://') : urlImg = urlImg;
+                    urlUsr.includes('http://') ? urlUsr = urlUsr.replace('http://','https://') : urlUsr = urlUsr;
+
                     // Linka o usuário com a imagem
                     statusLinkaImagem = await this.linkaImagem(urlImg, urlUsr);
         
@@ -299,6 +306,9 @@ class Aquisicao extends Component {
             data: dataForm,
             config: { 
                 'Content-Type': 'multipart/form-data',
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (response => {
@@ -336,6 +346,9 @@ class Aquisicao extends Component {
                 confiRotulo: 0.0,
                 data: data,
                 localizacao: latitude + ',' + longitude 
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (response => {
@@ -366,6 +379,7 @@ class Aquisicao extends Component {
             data: `${urlUsr}`,
             headers: { 
                 'Content-Type': 'text/uri-list',
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -374,6 +388,7 @@ class Aquisicao extends Component {
         })
         .catch (function(error){
             console.log('DEU ERRO LINKA IMAGEM');
+            console.log(error);
         })
         
         return status;

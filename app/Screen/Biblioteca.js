@@ -56,6 +56,7 @@ class Biblioteca extends Component {
           fontWeight: 'bold',
           fontSize: 28
         },
+        
     };
 
     /**
@@ -84,14 +85,11 @@ class Biblioteca extends Component {
         let validation = 0;
         let data;
 
-        let num = Math.round(Math.random()*1000);
-
         await axios({
             method: 'get',
             url: urlGetNomeUsuario,
             params: {
                 nomeUsuario: nomeUsuario,
-                num: num
             },
             headers: { 
                 'Cache-Control': 'no-store',
@@ -262,7 +260,15 @@ class Biblioteca extends Component {
 
         if ( httpStatusGetImagem === 200) {
 
-            httpStatusdeslinkaImagem = await this.deslinkaImagem(this.state.urlImagem, this.state.urlUser);
+            let urlImagem = this.state.urlImagem;
+            let urlUser = this.state.urlUser;
+
+            // Trocando http por https
+            urlImagem.includes('http://') ? urlImagem = urlImagem.replace('http://','https://') : urlImagem = urlImagem;
+            urlUser.includes('http://') ? urlUser = urlUser.replace('http://','https://') : urlUser = urlUser;
+
+            // Deslincando imagem de usuário
+            httpStatusdeslinkaImagem = await this.deslinkaImagem(urlImagem, urlUser);
 
             if ( httpStatusdeslinkaImagem === 204 ) {
 

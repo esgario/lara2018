@@ -49,6 +49,9 @@ class Sobre extends Component {
             url: urlGetDescricao,
             params: {
                 titulo: 'descrição',
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {

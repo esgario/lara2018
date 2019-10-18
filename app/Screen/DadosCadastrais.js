@@ -125,6 +125,9 @@ class DadosCadastrais extends Component {
             url: urlGetNomeUsuario,
             params: {
                 nomeUsuario: nomeUsuarioLogado,
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -183,6 +186,9 @@ class DadosCadastrais extends Component {
             params: {
                 dados: values,
                 nomeUsuarioAntigo: this.state.nomeUsuarioLogado
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
@@ -268,6 +274,9 @@ class DadosCadastrais extends Component {
                 nomeUsuario: this.state.nomeUsuarioLogado,
                 email: this.state.emailLogado,
                 senha: this.state.senhaLogado
+            },
+            headers: { 
+                'Cache-Control': 'no-store',
             }
         })
         .then (function(response) {
