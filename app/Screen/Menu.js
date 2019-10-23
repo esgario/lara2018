@@ -69,6 +69,7 @@ class Menu extends Component {
         this.setState({ hasCameraPermission: status === 'granted' });
 
         const permission = await Permissions.askAsync(Permissions.CAMERA);
+        
         if (permission.status !== 'granted') {
 
         } else {

@@ -434,6 +434,7 @@ class Aquisicao extends Component {
                 }
 
             {enviando ? (
+                
                 <View style= {styles.activityIndicator}>
                     <ActivityIndicator/>
                 </View>

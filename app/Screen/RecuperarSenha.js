@@ -19,7 +19,7 @@ import axios from 'axios';
 import { URL_API } from '../Utils/url_api';
 
 const urlGetEmail = `${URL_API}/usuario/search/findByEmail`;
-const urlPost = `${URL_API}-aberta/recuperar-senha`; // VER ESSA QUESTAO DE API-ABERTA, N VI NECESSIDADE
+const urlPost = `${URL_API}-aberta/recuperar-senha`;
 
 const validationSchema = yup.object().shape({
 

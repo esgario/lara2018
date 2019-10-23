@@ -334,7 +334,7 @@ class Biblioteca extends Component {
                             <TouchableOpacity 
                                 onPress = {() => this.setState({ 
                                     exibeImagem: true,
-                                    uriImagemModal: `${urlGetImagem}?nomeImg=${item.path}&nomeApp=eFarmer&largura=${screenHeigth}`
+                                    uriImagemModal: `${urlGetImagem}?nomeImg=${item.path}&nomeApp=eFarmer&largura=${screenWidth}`
                                     }
                                 )}
                             >

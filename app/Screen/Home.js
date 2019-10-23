@@ -100,7 +100,7 @@ class Home extends Component {
         senha = await this._retrieveData('senha');
 
         // Se estiver ok quer dizer que o usuário está salvo (e já foi feita validação no servidor)
-        if (nomeUsuario != 'erro' && senha != 'erro') {
+        if (nomeUsuario !== 'erro' && senha !== 'erro') {
 
             // Da seguimento no fluxo do app
             this.props.navigation.navigate('Menu', {nomeUsuario: nomeUsuario});
@@ -528,7 +528,6 @@ class Home extends Component {
                                 </TouchableOpacity>
 
                             </View>
-
 
                         </Modal>
 

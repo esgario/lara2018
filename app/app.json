@@ -1,8 +1,6 @@
 {
   "expo": {
     "name": "E-Farmer",
-    "icon": "./app/assets/app-icon.png",
-    "version": "1.0.0",
     "slug": "E-Farmer",
     "privacy": "public",
     "sdkVersion": "33.0.0",

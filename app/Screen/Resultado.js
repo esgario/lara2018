@@ -152,7 +152,8 @@ class Resultado extends Component {
             url: urlChecaResultado,
             params: {
                 job_id: job_id,
-                img_path: imagemPath
+                img_path: imagemPath,
+                algoritmo: 'coffee'
             },
             headers: { 
                 'Cache-Control': 'no-store',
@@ -195,6 +196,14 @@ class Resultado extends Component {
 
     };
 
+    /**
+     * Método para limitar o número de tentativas, no caso 10.
+     * Caso tenha obitido resultado, o envia.
+     * Caso contrario, emite alerta
+     * @author Pedro Biasutti
+     * @param job_id - número da requisição
+     * @param img_path - path da imagem
+     */
     gerenciaChecaResult = async (job_id, img_path) => {
         
         let count = 0;
