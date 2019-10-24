@@ -32,7 +32,7 @@ import { URL_API } from '../Utils/url_api';
 const urlValidaNovosDados = `${URL_API}/usuario/validaNovosDados`;
 const urlCadastraUsuario = `${URL_API}/usuario`;
 const urlPegaLocalizacao = `${URL_API}/python/pegaLocalizacao`
-const urlGetTermosUso = `${URL_API}/termos/search/findByTipo`;
+const urlGetTermosUso = `${URL_API}/termos/search/findByTitulo`;
 
 // Formik wrapper
 const FieldWrapper = ({ children, label, formikProps, formikKey }) => (
@@ -397,7 +397,7 @@ class Cadastro extends Component {
             method: 'get',
             url: urlGetTermosUso,
             params: {
-                tipo: 'termos-de-uso',
+                titulo: 'Termos de uso E-Farmer',
             },
             headers: { 
                 'Cache-Control': 'no-store',

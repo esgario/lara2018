@@ -83,7 +83,7 @@ class Biblioteca extends Component {
 
         let urlUser = '';
         let validation = 0;
-        let data;
+        let data = null;
 
         await axios({
             method: 'get',
@@ -96,66 +96,89 @@ class Biblioteca extends Component {
             }
         })
         .then (function(response) {
-            data = response.data
+            data = response.data;
             urlUser = response.data._links.self.href;
             validation = 7;
-            console.log('NÃO DEU ERRO NO GET USUARIO');
+            console.log('NÃO DEU ERRO NO GET USUARIO LIBRARY');
         })
-        .catch (function(error){
-            console.log('DEU ERRO NO GET USUARIO');
-        })
+        .catch (function(error) {
+            console.log('DEU ERRO NO GET USUARIO LIBRARY');
+        });
 
         if ( validation === 7 ) {
 
-            if (data.imagem.length) {
+            // Checa se existe imagens vinculadas ao usuário
+            if (JSON.stringify(data._links).includes('Imagem')) {
 
-                let fim = 0;
-                let imgDisp = [];
-                let iniLoop = this.state.imagemIndexDisplay;
-                let fimLoop = this.state.imagenSizeDisplay;
+                // Verifica se existe alguma imagem
+                if (data.imagem.length) {
 
-                fim = iniLoop + fimLoop;
+                    let imagens = [];
+                    
+                    // Pega apenas as imagens deste app
+                    for (let i = 0; i < data.imagem.length; i++) {
 
-                if (fimLoop > data.imagem.length) {
+                        if (data.imagem[i].app === 'E-Farmer') {
 
-                    fimLoop = data.imagem.length;
+                            imagens.push(data.imagem[i]);
 
-                }
+                        }
 
-                for (var i = iniLoop; i < fimLoop; i++) {
-                    imgDisp.push(data.imagem[i]);
-                }
+                    }
 
-                this.setState({
-                    user: data,
-                    imagens: data.imagem,
-                    urlUser: urlUser,
-                    imagensDisplay: imgDisp,
-                    imagemIndexDisplay: fim,
-                });
+                    // Verifica se existem imagens válidas
+                    if (imagens.length) {
+
+                        let fim = 0;
+                        let imgDisp = [];
+                        let iniLoop = this.state.imagemIndexDisplay;
+                        let fimLoop = this.state.imagenSizeDisplay;
+
+                        fim = iniLoop + fimLoop;
+
+                        // Truncando tamanho do fim do loop
+                        if (fimLoop > imagens.length) {
+
+                            fimLoop = imagens.length;
+
+                        }
+
+                        // Salvando todas as imagens do usuário até o fim do loop definido
+                        for (let i = iniLoop; i < fimLoop; i++) {
+
+                            imgDisp.push(imagens[i]);
+
+                        }
+
+                        this.setState({
+                            user: data,
+                            imagens: imagens,
+                            urlUser: urlUser,
+                            imagensDisplay: imgDisp,
+                            imagemIndexDisplay: fim,
+                        });
+
+                    } else {
+
+                        this.alertaSemImagem();
+                        
+                    }
+
+                } else {
+
+                    this.alertaSemImagem();
+    
+                }     
 
             } else {
 
-                var texto = 'Não existem imagens a serem exibidas.\n\n' +
-                        'Aperte "Ok" para voltar ao Menu inicial!\n\n';
+                this.alertaSemImagem();
 
-                Alert.alert(
-                    'Atenção',
-                    texto,
-                    [             
-                        {text: 'Ok', onPress: () => {
-                            this.props.navigation.navigate('Menu')
-                            }
-                        },
-                    ],
-                    { cancelable: false }
-                );
-
-            } 
+            };
 
         } else {
 
-            alert('O nome do usuário não existe no banco de dados !');
+            this.geraAlerta('O nome do usuário não existe no banco de dados !');
 
         }
 
@@ -313,6 +336,48 @@ class Biblioteca extends Component {
             imagemIndexDisplay: fim
         });
 
+    };
+
+    /**
+     * Método para avisar quando não existe imagem válida
+     * vinculada ao usuário.
+     * @author Pedro Biasutti
+     */
+    alertaSemImagem = () => {
+
+        const texto = 'Não existem imagens a serem exibidas.\n\n' +
+                        'Aperte "Ok" para voltar ao Menu inicial!\n\n';
+
+        Alert.alert(
+            'Atenção',
+            texto,
+            [             
+                {text: 'Ok', onPress: () => {
+                    this.props.navigation.navigate('Menu');
+                    }
+                },
+            ],
+            { cancelable: false }
+        );
+        
+    };
+
+    /**
+     * Método para exibir um alerta customizado
+     * @author Pedro Biasutti
+     * @param textoMsg - msg a ser exibida
+     */
+    geraAlerta = (textoMsg) => {
+
+        Alert.alert(
+            'Atenção',
+            textoMsg,
+            [
+                {text: 'OK'},
+              ],
+            { cancelable: false }
+        );
+        
     };
 
     /**

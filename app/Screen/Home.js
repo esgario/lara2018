@@ -3,7 +3,6 @@ import React, { Component } from 'react';
 import { StyleSheet,
         Text,
         View, 
-        Platform, 
         Image, 
         TouchableOpacity, 
         TextInput,
@@ -30,7 +29,7 @@ const screenHeight = Math.round(Dimensions.get('window').height);
 
 // Http request
 const urlGetLogIn = `${URL_API}/usuario/verificaLogin?`;
-const urlGetTermosUso = `${URL_API}/termos/search/findByTipo`;
+const urlGetTermosUso = `${URL_API}/termos/search/findByTitulo`;
 // const urlACK = `${URL_API}/ack/teste`;
 
 // YUP validation
@@ -168,7 +167,7 @@ class Home extends Component {
             method: 'get',
             url: urlGetTermosUso,
             params: {
-                tipo: 'termos-de-uso',
+                titulo: 'Termos de uso E-Farmer',
             },
             headers: { 
                 'Cache-Control': 'no-store'

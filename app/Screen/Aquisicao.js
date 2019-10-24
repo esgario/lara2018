@@ -345,7 +345,8 @@ class Aquisicao extends Component {
                 rotulo: '',
                 confiRotulo: 0.0,
                 data: data,
-                localizacao: latitude + ',' + longitude 
+                localizacao: latitude + ',' + longitude,
+                app: 'E-Farmer' 
             },
             headers: { 
                 'Cache-Control': 'no-store',

@@ -3,7 +3,7 @@ import React, { Component } from 'react';
 import {
         StyleSheet,
         View,
-        Text,
+        Alert,
         ScrollView,
         Image
     } from 'react-native';
@@ -33,8 +33,10 @@ class Sobre extends Component {
     };
 
     state = {
+
         texto_descricao: null
-    }
+
+    };
 
     /**
      * Método para pegar a descrição do app logo quando montar a tela
@@ -42,13 +44,14 @@ class Sobre extends Component {
      */
     async componentDidMount() {
 
-        texto = '';
+        let texto = '';
+        let httpStatus = 0;
 
         await axios({
             method: 'get',
             url: urlGetDescricao,
             params: {
-                titulo: 'descrição',
+                titulo: 'descrição E-Farmer',
             },
             headers: { 
                 'Cache-Control': 'no-store',
@@ -57,12 +60,35 @@ class Sobre extends Component {
         .then (function(response) {
             console.log('NÃO DEU ERRO PEGA DESCRIÇÃO');
             texto = response.data.texto;
+            httpStatus = response.status;
         })
         .catch (function(error){
-            console.log('DEU ERRO PEGA DESCRIÇÃO');       
+            console.log('DEU ERRO PEGA DESCRIÇÃO');
+            httpStatus = error.request.status;
         })
 
-        this.setState({texto_descricao: texto});
+        if (httpStatus === 200) {
+
+            this.setState({texto_descricao: texto});
+
+        } else {
+
+            const texto ='ERRO 01: \n\nProblema de comunicação com o servidor.' + 
+                        '\n\nCaso o problema persista, favor entrar em contato com a equipe técnica.';
+            
+            Alert.alert(
+                'Atenção',
+                texto,
+                [             
+                    {text: 'Ok', onPress: () => {
+                        this.props.navigation.navigate('Menu')
+                        }
+                    },
+                ],
+                { cancelable: false }
+            );
+
+        }
 
     };
 
@@ -93,6 +119,7 @@ class Sobre extends Component {
                 </View>
 
             </ScrollView>
+
         );
 
     };
