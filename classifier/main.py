@@ -15,7 +15,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=24)
     parser.add_argument('--weight_decay', type=float, default=5e-4)
     parser.add_argument('--data_augmentation', type=str, default='standard')
-    parser.add_argument('--model', type=str, default='mobilenet_v2')
+    parser.add_argument('--model', type=str, default='resnet50')
     parser.add_argument('--epochs', type=int, default=80)
     parser.add_argument('--pretrained', type=bool, default=True)
     parser.add_argument('--balanced_dataset', type=bool, default=False)
@@ -23,9 +23,9 @@ if __name__ == '__main__':
     parser.add_argument('--csv_file', type=str, default='dataset/dataset.csv')
     parser.add_argument('--fold', type=int, default=1)
     # Output filename
-    parser.add_argument('--output_filename', type=str, default='mobilenetv2_sgd_24_std')
+    parser.add_argument('--filename', type=str, default='default')
     # Train and Validation -> True, Test -> False
-    parser.add_argument("--train", type=bool, default=True)
+    parser.add_argument('--train', action='store_true')
     
     # Select Classifier
     # Leaf dataset
@@ -34,10 +34,10 @@ if __name__ == '__main__':
     #   2 - severity
     # Symptom dataset
     #   3 - biotic stress
-    parser.add_argument("--select_clf", type=int, default=2)
+    parser.add_argument("--select_clf", type=int, default=0)
     
     options = parser.parse_args()
-    
+
     # Leaf
     if options.select_clf < 3:
         # Dataset
