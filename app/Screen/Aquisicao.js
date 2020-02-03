@@ -43,7 +43,8 @@ class Aquisicao extends Component {
 
     static navigationOptions = {
 
-        title: 'Aquisição',
+        // title: 'Aquisição',
+        title: 'Image',
         headerStyle: {
           backgroundColor: '#39b500',
         },

@@ -48,7 +48,8 @@ class Resultado extends Component {
 
     static navigationOptions = {
 
-        title: 'Resultado',
+        // title: 'Resultado',
+        title: 'Result',
         headerStyle: {
           backgroundColor: '#39b500',
         },
@@ -311,6 +312,11 @@ class Resultado extends Component {
         }
 
         console.log(modeloResp);
+
+        modeloResp = modeloResp.replace('Lesão', 'Lesion')
+        modeloResp = modeloResp.replace('Diagnóstico', 'Diagnosis')
+        modeloResp = modeloResp.replace('Confiança', 'Probability')
+        modeloResp = modeloResp.replace('Bicho mineiro', 'Leaf miner')
 
         this.setState({resultado: true, textoModelo: modeloResp});
 

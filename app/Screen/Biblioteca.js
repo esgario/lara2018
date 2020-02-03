@@ -83,7 +83,7 @@ class Biblioteca extends Component {
 
         let urlUser = '';
         let validation = 0;
-        let data = null;
+        let data;
 
         await axios({
             method: 'get',

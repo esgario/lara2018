@@ -389,6 +389,7 @@ class Home extends Component {
                                         style = {styles.inputStyle}
                                         onChangeText = {formikProps.handleChange('nomeUsuario')}
                                         onBlur = {formikProps.handleBlur('nomeUsuario')}
+                                        autoCapitalize = { 'none' }
                                         onSubmitEditing = {() => { this.senha.focus() }}
                                         ref = {(ref) => { this.nomeUsuario = ref; }}
                                         returnKeyType = { "next" }
