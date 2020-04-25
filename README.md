@@ -15,7 +15,7 @@ conda activate <your_env_name>
 Then install the requirements:
 ```
 conda install pytorch torchvision cudatoolkit=10.1 -c pytorch
-conda install Pillow==6.1 pandas matplotlib bokehh opencv
+conda install Pillow==6.1 pandas matplotlib bokeh opencv
 pip install -r requirements.txt
 ```
 
