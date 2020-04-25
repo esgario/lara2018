@@ -6,28 +6,52 @@ from segmentation import SemanticSegmentation
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    
-    # Training settings
-    parser.add_argument('--optimizer', type=str, default='sgd')
-    parser.add_argument('--batch_size', type=int, default=4)
-    parser.add_argument('--weight_decay', type=float, default=5e-4)
-    parser.add_argument('--snapshot', type=str, default=None, help='Path to pretrained weights')
-    parser.add_argument('--extractor', type=str, default='pspresnet50')
-    parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--data_augmentation', type=str, default='std')
-    # Filename
-    parser.add_argument('--filename', type=str, default='default')
-    # Train and Validation -> True, Test -> False
-    parser.add_argument('--train', action='store_true')
-    
+
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        help="Select the desired optimization technique [sgd/adam].",
+        default="sgd",
+    )
+    parser.add_argument(
+        "--batch_size", type=int, help="Set images batch size", default=4
+    )
+    parser.add_argument(
+        "--weight_decay", type=float, help="Set L2 parameter norm penalty", default=5e-4
+    )
+    parser.add_argument(
+        "--snapshot", type=str, help="Path to pretrained weights", default=None
+    )
+    parser.add_argument(
+        "--extractor",
+        type=str,
+        help="Select features extractor architecture [unetresnet50/pspresnet50]",
+        default="pspresnet50",
+    )
+    parser.add_argument(
+        "--epochs", type=int, help="Set the number of epochs.", default=80
+    )
+    parser.add_argument(
+        "--data_augmentation",
+        type=str,
+        help="Select the data augmentation technique [standard/mixup]",
+        default="standard",
+    )
+    parser.add_argument(
+        "--filename",
+        type=str,
+        help="Network weights output file name.",
+        default="default",
+    )
+    parser.add_argument("--train", help="Run in training mode.", action="store_true")
+
     options = parser.parse_args()
-    
-    # -------------------------------------------------------- #
+
+
     Seg = SemanticSegmentation(parser)
-    
+
     if options.train:
         Seg.run_training()
     else:

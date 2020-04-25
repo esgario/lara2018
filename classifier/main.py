@@ -6,55 +6,90 @@ from classifiers import OneTaskClf, MultiTaskClf
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    
-    # Training settings
-    parser.add_argument('--optimizer', type=str, default='sgd')
-    parser.add_argument('--batch_size', type=int, default=24)
-    parser.add_argument('--weight_decay', type=float, default=5e-4)
-    parser.add_argument('--data_augmentation', type=str, default='standard')
-    parser.add_argument('--model', type=str, default='resnet50')
-    parser.add_argument('--epochs', type=int, default=80)
-    parser.add_argument('--pretrained', type=bool, default=True)
-    parser.add_argument('--balanced_dataset', type=bool, default=False)
-    # Dataset
-    parser.add_argument('--csv_file', type=str, default='dataset/dataset.csv')
-    parser.add_argument('--fold', type=int, default=1)
-    # Output filename
-    parser.add_argument('--filename', type=str, default='default')
-    # Train and Validation -> True, Test -> False
-    parser.add_argument('--train', action='store_true')
-    
-    # Select Classifier
-    # Leaf dataset
-    #   0 - multitask
-    #   1 - biotic stress
-    #   2 - severity
-    # Symptom dataset
-    #   3 - biotic stress
-    parser.add_argument("--select_clf", type=int, default=0)
-    
+
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        help="Select the desired optimization technique [sgd/adam].",
+        default="sgd",
+    )
+    parser.add_argument(
+        "--batch_size", type=int, help="Set images batch size", default=24
+    )
+    parser.add_argument(
+        "--weight_decay", type=float, help="Set L2 parameter norm penalty", default=5e-4
+    )
+    parser.add_argument(
+        "--data_augmentation",
+        type=str,
+        help="Select the data augmentation technique [standard/mixup/bc+]",
+        default="standard",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        help="Select CNN architecture [resnet34/resnet50/resnet101/alexnet/googlenet/vgg16/mobilenet_v2]",
+        default="resnet50",
+    )
+    parser.add_argument(
+        "--epochs", type=int, help="Set the number of epochs.", default=80
+    )
+    parser.add_argument(
+        "--pretrained",
+        type=bool,
+        help="Defines whether or not to use a pre-trained model.",
+        default=True,
+    )
+
+    # this is experimental, I do not recommend using it.
+    parser.add_argument("--balanced_dataset", type=bool, default=False)
+
+    parser.add_argument(
+        "--csv_file",
+        type=str,
+        help="Path of the dataset csv file.",
+        default="dataset/dataset.csv",
+    )
+    parser.add_argument(
+        "--fold",
+        type=int,
+        help="The data is changed based on the selected fold [1-5].",
+        default=1,
+    )
+    parser.add_argument(
+        "--filename",
+        type=str,
+        help="Network weights output file name.",
+        default="default",
+    )
+    parser.add_argument("--train", help="Run in training mode.", action="store_true")
+
+    parser.add_argument(
+        "--select_clf",
+        help="Select the experiment to run. Leaf dataset: (0) multitask, (1) biotic stress only, (2) severity only. Symptom dataset: (3) biotic stress only.",
+        type=int,
+        default=0,
+    )
+
     options = parser.parse_args()
 
-    # Leaf
+    # Leaf Dataset
     if options.select_clf < 3:
-        # Dataset
-        parser.add_argument('--images_dir', type=str, default='dataset/leaf')
+        parser.add_argument("--images_dir", type=str, default="dataset/leaf")
         Clf = MultiTaskClf(parser) if options.select_clf == 0 else OneTaskClf(parser)
-        
-    # Symptom
+
+    # Symptom Dataset
     else:
-        # Dataset
-        parser.add_argument('--images_dir', type=str, default='dataset/symptom')
+        parser.add_argument("--images_dir", type=str, default="dataset/symptom")
         Clf = OneTaskClf(parser)
-    
+
     if options.train:
         Clf.run_training()
     else:
         if options.select_clf == 0:
-            y_true_dis, y_pred_dis, y_true_sev, y_pred_sev = Clf.run_test()    
-            
+            y_true_dis, y_pred_dis, y_true_sev, y_pred_sev = Clf.run_test()
+
         else:
             y_true, y_pred = Clf.run_test()
