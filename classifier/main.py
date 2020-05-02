@@ -65,7 +65,7 @@ if __name__ == "__main__":
         default="default",
     )
     parser.add_argument("--train", help="Run in training mode.", action="store_true")
-
+    parser.add_argument("--test", help="Run in test mode.", action="store_true")
     parser.add_argument(
         "--select_clf",
         help="Select the experiment to run. Leaf dataset: (0) multitask, (1) biotic stress only, (2) severity only. Symptom dataset: (3) biotic stress only.",
@@ -74,6 +74,8 @@ if __name__ == "__main__":
     )
 
     options = parser.parse_args()
+
+    assert (options.train or options.test), "You must specify wheter you want to train or test a model."
 
     # Leaf Dataset
     if options.select_clf < 3:
@@ -87,7 +89,8 @@ if __name__ == "__main__":
 
     if options.train:
         Clf.run_training()
-    else:
+    
+    if options.test:
         if options.select_clf == 0:
             y_true_dis, y_pred_dis, y_true_sev, y_pred_sev = Clf.run_test()
 
