@@ -423,7 +423,7 @@ class MultiTaskClf:
 
             # Record best model
             curr_fs = val_metrics['mean_fs']
-            if (curr_fs > best_fs) and epoch >= 5:
+            if (curr_fs > best_fs):
                 best_fs = curr_fs
 
                 # Saving model
