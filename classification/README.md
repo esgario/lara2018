@@ -1,4 +1,4 @@
-# Classifier
+# Classification
 
 ## Running
 
