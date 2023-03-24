@@ -1,2 +1,0 @@
-# Smartphone Application
-
