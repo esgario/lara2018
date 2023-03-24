@@ -2,8 +2,6 @@
 
 This repository is intended to develop the work supported by the Latin America Research Awards 2018.
 
-The main objective of this work is to develop a deep learning model to classify and estimate the severity of coffee leaf biotic stress.
-
 The work is divided into two parts:
 
 * [Classification](classification/README.md): This folder have the solution developed in the paper. Where we developed a multi-task model to classify the symptoms and estimate the severity of the biotic stress.
