@@ -1,3 +1,5 @@
 scikit-learn
 tqdm
 imageio
+bokeh==2.4.3
+matplotlib
