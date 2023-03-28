@@ -229,7 +229,7 @@ class RandomTranslate(object):
                 scale=1.0,
                 angle=0.0,
                 shear=0.0,
-                fillcolor=0,
+                fill=0,
             ),
         )
 
@@ -247,7 +247,7 @@ class RandomRotate(object):
                 scale=1.0,
                 angle=rotate_degree,
                 interpolation=Image.BILINEAR,
-                fillcolor=(0, 0, 0),
+                fill=(0, 0, 0),
                 shear=0.0,
             ),
             tf.affine(
@@ -256,7 +256,7 @@ class RandomRotate(object):
                 scale=1.0,
                 angle=rotate_degree,
                 interpolation=Image.NEAREST,
-                fillcolor=0,
+                fill=0,
                 shear=0.0,
             ),
         )
