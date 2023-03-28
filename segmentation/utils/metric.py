@@ -4,11 +4,12 @@
 import torch
 import numpy as np
 
+
 def _fast_hist(label_true, label_pred, n_class):
     mask = (label_true >= 0) & (label_true < n_class)
     hist = np.bincount(
         n_class * label_true[mask].type(torch.int) + label_pred[mask].type(torch.int),
-        minlength=n_class ** 2,
+        minlength=n_class**2,
     ).reshape(n_class, n_class)
     return hist
 

@@ -1,23 +1,28 @@
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 
-__all__ = ['AlexNet', 'alexnet']
+__all__ = ["AlexNet", "alexnet"]
 
 
 model_urls = {
-    'alexnet': 'https://download.pytorch.org/models/alexnet-owt-4df8aa71.pth',
+    "alexnet": "https://download.pytorch.org/models/alexnet-owt-4df8aa71.pth",
 }
+
 
 def load_pretrained_model(model, url):
     pretrained_state = model_zoo.load_url(model_urls[url])
     model_state = model.state_dict()
-    pretrained_state = { k:v for k,v in pretrained_state.items() if k in model_state and v.size() == model_state[k].size() }
+    pretrained_state = {
+        k: v
+        for k, v in pretrained_state.items()
+        if k in model_state and v.size() == model_state[k].size()
+    }
     model_state.update(pretrained_state)
     model.load_state_dict(model_state)
     return model
 
-class AlexNet(nn.Module):
 
+class AlexNet(nn.Module):
     def __init__(self, num_classes=1000):
         super(AlexNet, self).__init__()
         self.features = nn.Sequential(
@@ -44,7 +49,7 @@ class AlexNet(nn.Module):
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=True),
         )
-        
+
         if type(num_classes) is not tuple:
             # Original
             self.fc1 = nn.Linear(4096, num_classes)
@@ -59,7 +64,7 @@ class AlexNet(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.size(0), 256 * 6 * 6)
         x = self.classifier(x)
-        
+
         if self.fc2 is None:
             x1 = self.fc1(x)
             return x1
@@ -67,6 +72,7 @@ class AlexNet(nn.Module):
             x1 = self.fc1(x)
             x2 = self.fc2(x)
             return x1, x2
+
 
 def alexnet(pretrained=False, **kwargs):
     r"""AlexNet model architecture from the
@@ -77,6 +83,6 @@ def alexnet(pretrained=False, **kwargs):
     """
     model = AlexNet(**kwargs)
     if pretrained:
-        load_pretrained_model(model, 'alexnet')
-        
+        load_pretrained_model(model, "alexnet")
+
     return model

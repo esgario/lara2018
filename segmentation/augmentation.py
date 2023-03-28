@@ -30,13 +30,19 @@ class Scale:
             if w < h:
                 ow = self.size
                 oh = int(self.size * h / w)
-                return img.resize((ow, oh), self.interpolation), target.resize((ow, oh), self.interpolation)
+                return img.resize((ow, oh), self.interpolation), target.resize(
+                    (ow, oh), self.interpolation
+                )
             else:
                 oh = self.size
                 ow = int(self.size * w / h)
-                return img.resize((ow, oh), self.interpolation), target.resize((ow, oh), self.interpolation)
+                return img.resize((ow, oh), self.interpolation), target.resize(
+                    (ow, oh), self.interpolation
+                )
         else:
-            return img.resize(self.size, self.interpolation), target.resize(self.size, self.interpolation)
+            return img.resize(self.size, self.interpolation), target.resize(
+                self.size, self.interpolation
+            )
 
 
 class CenterCrop:
@@ -50,8 +56,8 @@ class CenterCrop:
         img, target = imgmap
         w, h = img.size
         th, tw = self.size
-        x1 = int(round((w - tw) / 2.))
-        y1 = int(round((h - th) / 2.))
+        x1 = int(round((w - tw) / 2.0))
+        y1 = int(round((h - th) / 2.0))
         return img.crop((x1, y1, x1 + tw, y1 + th)), target.crop((x1, y1, x1 + tw, y1 + th))
 
 
@@ -78,7 +84,6 @@ class RandomCrop:
 
 
 class RandomSizedCrop:
-
     def __init__(self, size, interpolation=Image.NEAREST):
         self.size = size
         self.interpolation = interpolation
@@ -88,7 +93,7 @@ class RandomSizedCrop:
         for attempt in range(10):
             area = img.size[0] * img.size[1]
             target_area = random.uniform(0.5, 1.0) * area
-            aspect_ratio = random.uniform(3. / 4, 4. / 3)
+            aspect_ratio = random.uniform(3.0 / 4, 4.0 / 3)
 
             w = int(round(math.sqrt(target_area * aspect_ratio)))
             h = int(round(math.sqrt(target_area / aspect_ratio)))
@@ -102,11 +107,12 @@ class RandomSizedCrop:
 
                 img = img.crop((x1, y1, x1 + w, y1 + h))
                 target = target.crop((x1, y1, x1 + w, y1 + h))
-                assert(img.size == (w, h))
-                assert(target.size == (w, h))
+                assert img.size == (w, h)
+                assert target.size == (w, h)
 
-                return img.resize((self.size, self.size), self.interpolation), \
-                       target.resize((self.size, self.size), self.interpolation)
+                return img.resize((self.size, self.size), self.interpolation), target.resize(
+                    (self.size, self.size), self.interpolation
+                )
 
         # Fallback
         scale = Scale(self.size, interpolation=self.interpolation)
@@ -115,7 +121,6 @@ class RandomSizedCrop:
 
 
 class RandomHorizontalFlip:
-
     def __call__(self, imgmap):
         img, target = imgmap
         if random.random() < 0.5:
@@ -124,7 +129,6 @@ class RandomHorizontalFlip:
 
 
 class RandomRotation:
-
     def __call__(self, imgmap, degree=10):
         img, target = imgmap
         deg = np.random.randint(-degree, degree, 1)[0]

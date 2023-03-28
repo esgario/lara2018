@@ -7,12 +7,14 @@ import torch
 import torch.nn as nn
 import math
 
+
 def conv3x3(in_planes, out_planes, stride=1):
-    " 3x3 convolution with padding "
+    "3x3 convolution with padding"
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
 
+
 class BasicBlock(nn.Module):
-    expansion=1
+    expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(BasicBlock, self).__init__()
@@ -42,25 +44,25 @@ class BasicBlock(nn.Module):
 
         return out
 
-class Wide_ResNet(nn.Module):
 
+class Wide_ResNet(nn.Module):
     def __init__(self, block, layers, wfactor, num_classes=10):
         super(Wide_ResNet, self).__init__()
         self.inplanes = 16
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
         self.relu = nn.ReLU(inplace=True)
-        self.layer1 = self._make_layer(block, 16*wfactor, layers[0])
-        self.layer2 = self._make_layer(block, 32*wfactor, layers[1], stride=2)
-        self.layer3 = self._make_layer(block, 64*wfactor, layers[2], stride=2)
+        self.layer1 = self._make_layer(block, 16 * wfactor, layers[0])
+        self.layer2 = self._make_layer(block, 32 * wfactor, layers[1], stride=2)
+        self.layer3 = self._make_layer(block, 64 * wfactor, layers[2], stride=2)
         self.avgpool = nn.AvgPool2d(8, stride=1)
-        self.fc1 = nn.Linear(64*block.expansion*wfactor, num_classes[0])
-        self.fc2 = nn.Linear(64*block.expansion*wfactor, num_classes[1])
+        self.fc1 = nn.Linear(64 * block.expansion * wfactor, num_classes[0])
+        self.fc2 = nn.Linear(64 * block.expansion * wfactor, num_classes[1])
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
+                m.weight.data.normal_(0, math.sqrt(2.0 / n))
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
@@ -69,8 +71,14 @@ class Wide_ResNet(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(planes * block.expansion)
+                nn.Conv2d(
+                    self.inplanes,
+                    planes * block.expansion,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
+                nn.BatchNorm2d(planes * block.expansion),
             )
 
         layers = []
@@ -92,7 +100,7 @@ class Wide_ResNet(nn.Module):
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
-        
+
         x1 = self.fc1(x)
         x2 = self.fc2(x)
 
@@ -100,6 +108,6 @@ class Wide_ResNet(nn.Module):
 
 
 def wide_resnet(depth, width, **kwargs):
-#    assert (depth - 2) % 6 == 0
+    #    assert (depth - 2) % 6 == 0
     n = (depth - 2) / 6
     return Wide_ResNet(BasicBlock, [n, n, n], width, **kwargs)
