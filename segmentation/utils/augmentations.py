@@ -4,6 +4,7 @@ import random
 import numpy as np
 import torch
 import torchvision.transforms.functional as tf
+from torchvision.transforms import InterpolationMode
 
 from PIL import Image, ImageOps
 
@@ -246,7 +247,7 @@ class RandomRotate(object):
                 translate=(0, 0),
                 scale=1.0,
                 angle=rotate_degree,
-                interpolation=Image.BILINEAR,
+                interpolation=InterpolationMode.BILINEAR,
                 fill=(0, 0, 0),
                 shear=0.0,
             ),
@@ -255,7 +256,7 @@ class RandomRotate(object):
                 translate=(0, 0),
                 scale=1.0,
                 angle=rotate_degree,
-                interpolation=Image.NEAREST,
+                interpolation=InterpolationMode.NEAREST,
                 fill=0,
                 shear=0.0,
             ),
