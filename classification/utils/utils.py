@@ -6,12 +6,18 @@ Created on Thu May  2 09:49:37 2019
 @author: esgario
 """
 
+import os
+
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from bokeh.plotting import figure
 from bokeh.io import show
 from bokeh.models import LinearAxis, Range1d
 from sklearn.metrics import confusion_matrix
 import numpy as np
 import matplotlib.pyplot as plt
+
+
+RESULTS_FOLDER = "results"
 
 
 def line_graph(train, val):
@@ -145,7 +151,7 @@ def plot_confusion_matrix(
     )
     # plt.show()
 
-    fig.savefig("results/" + output_name + ".png", bbox_inches="tight", dpi=200)
+    fig.savefig(RESULTS_FOLDER + "/" + output_name + ".png", bbox_inches="tight", dpi=200)
     plt.close(fig)
 
 
@@ -177,4 +183,30 @@ def multilabel_confusion_matrix(y_true, y_pred):
     print(cm)
     plot_confusion_matrix(
         cm=cm, target_names=target_names, title=" ", normalize=True, figsize=(14, 11)
+    )
+
+
+def write_results(y_true, y_pred, clf_label, cm_target_names, cm_suffix, filename):
+    acc = accuracy_score(y_true, y_pred)
+    pr = precision_score(y_true, y_pred, average="macro")
+    re = recall_score(y_true, y_pred, average="macro")
+    fs = f1_score(y_true, y_pred, average="macro")
+
+    results_folder = os.path.join(RESULTS_FOLDER, clf_label)
+    if not os.path.exists(results_folder):
+        os.makedirs(results_folder)
+
+    with open(os.path.join(results_folder, filename + ".csv"), "a") as fp:
+        fp.write(
+            "acc,prec,rec,fs\n%.2f,%.2f,%.2f,%.2f\n" % (acc * 100, pr * 100, re * 100, fs * 100)
+        )
+
+    # Confusion matrix
+    cm = confusion_matrix(y_true, y_pred, labels=list(range(0, 5)))
+
+    plot_confusion_matrix(
+        cm=cm,
+        target_names=cm_target_names,
+        title=" ",
+        output_name=clf_label + "/" + filename + cm_suffix,
     )

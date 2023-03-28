@@ -6,6 +6,7 @@ Created on Mon Jun 24 16:47:19 2019
 @author: esgario
 """
 
+import os
 import sys
 import numpy as np
 
@@ -18,7 +19,7 @@ from torch.nn.utils.clip_grad import clip_grad_norm_
 
 from utils.augmentation import between_class, mixup_data, mixup_criterion
 from utils.customdatasets import CoffeeLeavesDataset
-from utils.utils import static_graph, plot_confusion_matrix
+from utils.utils import static_graph, plot_confusion_matrix, write_results
 from net_models import (
     shallow,
     resnet34,
@@ -517,11 +518,8 @@ class MultiTaskClf:
                 print("model saved")
 
             # Saving log
-            fp = open(
-                "log/" + clf_label[self.opt.select_clf] + "/" + self.opt.filename + ".pkl", "wb"
-            )
-            pickle.dump(record, fp)
-            fp.close()
+            with open(os.path.join("log", clf_label[self.opt.select_clf], self.opt.filename + ".pkl"), "wb") as fp:
+                pickle.dump(record, fp)
 
         # Plot
         # static_graph(np.array(record['train_dis_acc'])/100, np.array(record['val_dis_acc'])/100)
@@ -545,7 +543,7 @@ class MultiTaskClf:
         y_true_sev = np.empty(0)
 
         with torch.no_grad():
-            for i, (images, labels_dis, labels_sev) in enumerate(test_loader):
+            for images, labels_dis, labels_sev in test_loader:
                 # Loading images on gpu
                 if torch.cuda.is_available():
                     images, labels_dis, labels_sev = (
@@ -572,49 +570,24 @@ class MultiTaskClf:
                 y_true_sev = np.concatenate((y_true_sev, labels_sev.data.cpu().numpy()))
 
         # Biotic stress
-        acc = accuracy_score(y_true_dis, y_pred_dis)
-        pr = precision_score(y_true_dis, y_pred_dis, average="macro")
-        re = recall_score(y_true_dis, y_pred_dis, average="macro")
-        fs = f1_score(y_true_dis, y_pred_dis, average="macro")
-
-        f = open(
-            "results/" + clf_label[self.opt.select_clf] + "/" + self.opt.filename + ".csv", "a"
-        )
-        f.write(
-            "acc,prec,rec,fs\n%.2f,%.2f,%.2f,%.2f\n" % (acc * 100, pr * 100, re * 100, fs * 100)
-        )
-
-        labels_dis = ["Healthy", "Leaf miner", "Rust", "Phoma", "Cercospora"]
-
-        # Confusion matrix
-        cm = confusion_matrix(y_true_dis, y_pred_dis, list(range(0, 5)))
-        plot_confusion_matrix(
-            cm=cm,
-            target_names=labels_dis,
-            title=" ",
-            output_name=clf_label[self.opt.select_clf] + "/" + self.opt.filename + "_dis",
+        write_results(
+            y_true=y_true_dis,
+            y_pred=y_pred_dis,
+            clf_label=clf_label[self.opt.select_clf],
+            cm_target_names=["Healthy", "Leaf miner", "Rust", "Phoma", "Cercospora"],
+            cm_suffix="_dis",
+            filename=self.opt.filename
         )
 
         # Severity
-        acc = accuracy_score(y_true_sev, y_pred_sev)
-        pr = precision_score(y_true_sev, y_pred_sev, average="macro")
-        re = recall_score(y_true_sev, y_pred_sev, average="macro")
-        fs = f1_score(y_true_sev, y_pred_sev, average="macro")
-
-        f.write("%.2f,%.2f,%.2f,%.2f\n" % (acc * 100, pr * 100, re * 100, fs * 100))
-
-        labels_sev = ["Healthy", "Very low", "Low", "High", "Very high"]
-
-        # Confusion matrix
-        cm = confusion_matrix(y_true_sev, y_pred_sev, list(range(0, 5)))
-        plot_confusion_matrix(
-            cm=cm,
-            target_names=labels_sev,
-            title=" ",
-            output_name=clf_label[self.opt.select_clf] + "/" + self.opt.filename + "_sev",
+        write_results(
+            y_true=y_true_sev,
+            y_pred=y_pred_sev,
+            clf_label=clf_label[self.opt.select_clf],
+            cm_target_names=["Healthy", "Very low", "Low", "High", "Very high"],
+            cm_suffix="_sev",
+            filename=self.opt.filename
         )
-
-        f.close()
 
         return y_true_dis, y_pred_dis, y_true_sev, y_pred_sev
 
@@ -874,12 +847,8 @@ class OneTaskClf:
                 print("model saved")
 
             # Saving log
-            fp = open(
-                "log/" + clf_label[self.opt.select_clf] + "/" + self.opt.filename + ".pkl", "wb"
-            )
-
-            pickle.dump(record, fp)
-            fp.close()
+            with open(os.path.join("log", clf_label[self.opt.select_clf], self.opt.filename + ".pkl"), "wb") as fp:
+                pickle.dump(record, fp)
 
         # Plot
         # static_graph(np.array(record['train_acc'])/100, np.array(record['val_acc'])/100)
@@ -899,7 +868,7 @@ class OneTaskClf:
         y_true = np.empty(0)
 
         with torch.no_grad():
-            for i, (images, labels) in enumerate(test_loader):
+            for images, labels in test_loader:
                 # Loading images on gpu
                 if torch.cuda.is_available():
                     images, labels = images.cuda(), labels.cuda()
@@ -913,33 +882,19 @@ class OneTaskClf:
                 y_true = np.concatenate((y_true, labels.data.cpu().numpy()))
 
         # Biotic stress labels
-        acc = accuracy_score(y_true, y_pred)
-        pr = precision_score(y_true, y_pred, average="macro")
-        re = recall_score(y_true, y_pred, average="macro")
-        fs = f1_score(y_true, y_pred, average="macro")
-
-        f = open(
-            "results/" + clf_label[self.opt.select_clf] + "/" + self.opt.filename + ".csv", "a"
-        )
-        f.write(
-            "acc,prec,rec,fs\n%.2f,%.2f,%.2f,%.2f\n" % (acc * 100, pr * 100, re * 100, fs * 100)
-        )
-
         if self.opt.select_clf != 2:
             labels = ["Healhty", "Leaf miner", "Rust", "Phoma", "Cercospora"]
         else:
             labels = ["Healthy", "Very low", "Low", "High", "Very high"]
 
-        # Confusion matrix
-        cm = confusion_matrix(y_true, y_pred, list(range(0, 5)))
-        plot_confusion_matrix(
-            cm=cm,
-            target_names=labels,
-            title=" ",
-            output_name=clf_label[self.opt.select_clf] + "/" + self.opt.filename,
+        write_results(
+            y_true=y_true,
+            y_pred=y_pred,
+            clf_label=clf_label[self.opt.select_clf],
+            cm_target_names=labels,
+            cm_suffix="",
+            filename=self.opt.filename,
         )
-
-        f.close()
 
         return y_true, y_pred
 
