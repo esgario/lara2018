@@ -15,9 +15,7 @@ if __name__ == "__main__":
         help="Select the desired optimization technique [sgd/adam].",
         default="sgd",
     )
-    parser.add_argument(
-        "--batch_size", type=int, help="Set images batch size", default=24
-    )
+    parser.add_argument("--batch_size", type=int, help="Set images batch size", default=24)
     parser.add_argument(
         "--weight_decay", type=float, help="Set L2 parameter norm penalty", default=5e-4
     )
@@ -33,9 +31,7 @@ if __name__ == "__main__":
         help="Select CNN architecture [resnet34/resnet50/resnet101/alexnet/googlenet/vgg16/mobilenet_v2]",
         default="resnet50",
     )
-    parser.add_argument(
-        "--epochs", type=int, help="Set the number of epochs.", default=80
-    )
+    parser.add_argument("--epochs", type=int, help="Set the number of epochs.", default=80)
     parser.add_argument(
         "--pretrained",
         type=bool,
@@ -75,7 +71,9 @@ if __name__ == "__main__":
 
     options = parser.parse_args()
 
-    assert (options.train or options.test), "You must specify wheter you want to train or test a model."
+    assert (
+        options.train or options.test
+    ), "You must specify wheter you want to train or test a model."
 
     # Leaf Dataset
     if options.select_clf < 3:
@@ -89,7 +87,7 @@ if __name__ == "__main__":
 
     if options.train:
         Clf.run_training()
-    
+
     if options.test:
         if options.select_clf == 0:
             y_true_dis, y_pred_dis, y_true_sev, y_pred_sev = Clf.run_test()

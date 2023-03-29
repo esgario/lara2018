@@ -20,7 +20,10 @@ class PSPModule(nn.Module):
 
     def forward(self, feats):
         h, w = feats.size(2), feats.size(3)
-        priors = [F.interpolate(input=stage(feats), size=(h, w), mode='bilinear') for stage in self.stages] + [feats]
+        priors = [
+            F.interpolate(input=stage(feats), size=(h, w), mode="bilinear")
+            for stage in self.stages
+        ] + [feats]
         bottle = self.bottleneck(torch.cat(priors, 1))
         return self.relu(bottle)
 
@@ -31,18 +34,25 @@ class PSPUpsample(nn.Module):
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 3, padding=1),
             nn.BatchNorm2d(out_channels),
-            nn.PReLU()
+            nn.PReLU(),
         )
 
     def forward(self, x):
         h, w = 2 * x.size(2), 2 * x.size(3)
-        p = F.interpolate(input=x, size=(h, w), mode='bilinear')
+        p = F.interpolate(input=x, size=(h, w), mode="bilinear")
         return self.conv(p)
 
 
 class PSPNet(nn.Module):
-    def __init__(self, n_classes=3, sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet50',
-                 pretrained=True):
+    def __init__(
+        self,
+        n_classes=3,
+        sizes=(1, 2, 3, 6),
+        psp_size=2048,
+        deep_features_size=1024,
+        backend="resnet50",
+        pretrained=True,
+    ):
         super().__init__()
         self.feats = getattr(extractors, backend)(pretrained)
         self.psp = PSPModule(psp_size, 1024, sizes)
@@ -53,19 +63,14 @@ class PSPNet(nn.Module):
         self.up_3 = PSPUpsample(64, 64)
 
         self.drop_2 = nn.Dropout2d(p=0.15)
-        self.final = nn.Sequential(
-            nn.Conv2d(64, n_classes, kernel_size=1),
-            nn.LogSoftmax()
-        )
+        self.final = nn.Sequential(nn.Conv2d(64, n_classes, kernel_size=1), nn.LogSoftmax())
 
         self.classifier = nn.Sequential(
-            nn.Linear(deep_features_size, 256),
-            nn.ReLU(),
-            nn.Linear(256, n_classes)
+            nn.Linear(deep_features_size, 256), nn.ReLU(), nn.Linear(256, n_classes)
         )
 
     def forward(self, x):
-        f, class_f = self.feats(x) 
+        f, class_f = self.feats(x)
         p = self.psp(f)
         p = self.drop_1(p)
 
@@ -77,7 +82,9 @@ class PSPNet(nn.Module):
 
         p = self.up_3(p)
         p = self.drop_2(p)
-        
-        auxiliary = F.adaptive_max_pool2d(input=class_f, output_size=(1, 1)).view(-1, class_f.size(1))
-        
+
+        auxiliary = F.adaptive_max_pool2d(input=class_f, output_size=(1, 1)).view(
+            -1, class_f.size(1)
+        )
+
         return self.final(p), self.classifier(auxiliary)

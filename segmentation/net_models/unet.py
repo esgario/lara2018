@@ -1,18 +1,23 @@
-'''
+"""
 https://github.com/kevinlu1211
-'''
+"""
 import torch
 import torch.nn as nn
 import torchvision
+
 
 class ConvBlock(nn.Module):
     """
     Helper module that consists of a Conv -> BN -> ReLU
     """
 
-    def __init__(self, in_channels, out_channels, padding=1, kernel_size=3, stride=1, with_nonlinearity=True):
+    def __init__(
+        self, in_channels, out_channels, padding=1, kernel_size=3, stride=1, with_nonlinearity=True
+    ):
         super().__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, padding=padding, kernel_size=kernel_size, stride=stride)
+        self.conv = nn.Conv2d(
+            in_channels, out_channels, padding=padding, kernel_size=kernel_size, stride=stride
+        )
         self.bn = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU()
         self.with_nonlinearity = with_nonlinearity
@@ -33,8 +38,7 @@ class Bridge(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.bridge = nn.Sequential(
-            ConvBlock(in_channels, out_channels),
-            ConvBlock(out_channels, out_channels)
+            ConvBlock(in_channels, out_channels), ConvBlock(out_channels, out_channels)
         )
 
     def forward(self, x):
@@ -46,8 +50,14 @@ class UpBlockForUNetWithResNet50(nn.Module):
     Up block that encapsulates one up-sampling step which consists of Upsample -> ConvBlock -> ConvBlock
     """
 
-    def __init__(self, in_channels, out_channels, up_conv_in_channels=None, up_conv_out_channels=None,
-                 upsampling_method="conv_transpose"):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        up_conv_in_channels=None,
+        up_conv_out_channels=None,
+        upsampling_method="conv_transpose",
+    ):
         super().__init__()
 
         if up_conv_in_channels == None:
@@ -56,11 +66,13 @@ class UpBlockForUNetWithResNet50(nn.Module):
             up_conv_out_channels = out_channels
 
         if upsampling_method == "conv_transpose":
-            self.upsample = nn.ConvTranspose2d(up_conv_in_channels, up_conv_out_channels, kernel_size=2, stride=2)
+            self.upsample = nn.ConvTranspose2d(
+                up_conv_in_channels, up_conv_out_channels, kernel_size=2, stride=2
+            )
         elif upsampling_method == "bilinear":
             self.upsample = nn.Sequential(
-                nn.Upsample(mode='bilinear', scale_factor=2),
-                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1)
+                nn.Upsample(mode="bilinear", scale_factor=2),
+                nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1),
             )
         self.conv_block_1 = ConvBlock(in_channels, out_channels)
         self.conv_block_2 = ConvBlock(out_channels, out_channels)
@@ -96,24 +108,31 @@ class UNetWithResnet50Encoder(nn.Module):
         up_blocks.append(UpBlockForUNetWithResNet50(2048, 1024))
         up_blocks.append(UpBlockForUNetWithResNet50(1024, 512))
         up_blocks.append(UpBlockForUNetWithResNet50(512, 256))
-        up_blocks.append(UpBlockForUNetWithResNet50(in_channels=128 + 64, out_channels=128,
-                                                    up_conv_in_channels=256, up_conv_out_channels=128))
-        up_blocks.append(UpBlockForUNetWithResNet50(in_channels=64 + 3, out_channels=64,
-                                                    up_conv_in_channels=128, up_conv_out_channels=64))
+        up_blocks.append(
+            UpBlockForUNetWithResNet50(
+                in_channels=128 + 64,
+                out_channels=128,
+                up_conv_in_channels=256,
+                up_conv_out_channels=128,
+            )
+        )
+        up_blocks.append(
+            UpBlockForUNetWithResNet50(
+                in_channels=64 + 3,
+                out_channels=64,
+                up_conv_in_channels=128,
+                up_conv_out_channels=64,
+            )
+        )
 
         self.up_blocks = nn.ModuleList(up_blocks)
 
         self.out = nn.Sequential(
-            nn.Conv2d(64, n_classes, kernel_size=1, stride=1),
-            nn.LogSoftmax()
+            nn.Conv2d(64, n_classes, kernel_size=1, stride=1), nn.LogSoftmax()
         )
-        
+
         # --------------------------------
-        self.classifier = nn.Sequential(
-            nn.Linear(2048, 128),
-            nn.ReLU(),
-            nn.Linear(128, n_classes)
-        )
+        self.classifier = nn.Sequential(nn.Linear(2048, 128), nn.ReLU(), nn.Linear(128, n_classes))
 
     def forward(self, x, with_output_feature_map=False):
         pre_pools = dict()
@@ -134,29 +153,32 @@ class UNetWithResnet50Encoder(nn.Module):
         for i, block in enumerate(self.up_blocks, 1):
             key = f"layer_{UNetWithResnet50Encoder.DEPTH - 1 - i}"
             x = block(x, pre_pools[key])
-        
+
         x = self.out(x)
-        aux = nn.functional.adaptive_max_pool2d(input=class_x, output_size=(1, 1)).view(-1, class_x.size(1))
-        
-#        del pre_pools
-#        del class_x
-#        
+        aux = nn.functional.adaptive_max_pool2d(input=class_x, output_size=(1, 1)).view(
+            -1, class_x.size(1)
+        )
+
+        #        del pre_pools
+        #        del class_x
+        #
         return x, self.classifier(aux)
 
-#model = UNetWithResnet50Encoder().cuda()
-#inp = torch.rand((2, 3, 256, 512)).cuda()
-#out, out_cls = model(inp)
 
-'''
+# model = UNetWithResnet50Encoder().cuda()
+# inp = torch.rand((2, 3, 256, 512)).cuda()
+# out, out_cls = model(inp)
+
+"""
 Code obtained from repository: https://github.com/milesial/Pytorch-UNet
-'''
+"""
 
 #
-#import torch
-#import torch.nn as nn
-#import torch.nn.functional as F
+# import torch
+# import torch.nn as nn
+# import torch.nn.functional as F
 #
-#class inconv(nn.Module):
+# class inconv(nn.Module):
 #    def __init__(self, in_ch, out_ch):
 #        super(inconv, self).__init__()
 #        self.conv = double_conv(in_ch, out_ch)
@@ -166,7 +188,7 @@ Code obtained from repository: https://github.com/milesial/Pytorch-UNet
 #        return x
 #
 #
-#class down(nn.Module):
+# class down(nn.Module):
 #    def __init__(self, in_ch, out_ch):
 #        super(down, self).__init__()
 #        self.mpconv = nn.Sequential(
@@ -179,7 +201,7 @@ Code obtained from repository: https://github.com/milesial/Pytorch-UNet
 #        return x
 #
 #
-#class up(nn.Module):
+# class up(nn.Module):
 #    def __init__(self, in_ch, out_ch, bilinear=True):
 #        super(up, self).__init__()
 #
@@ -194,15 +216,15 @@ Code obtained from repository: https://github.com/milesial/Pytorch-UNet
 #
 #    def forward(self, x1, x2):
 #        x1 = self.up(x1)
-#        
+#
 #        # input is CHW
 #        diffY = x2.size()[2] - x1.size()[2]
 #        diffX = x2.size()[3] - x1.size()[3]
 #
 #        x1 = F.pad(x1, (diffX // 2, diffX - diffX//2,
 #                        diffY // 2, diffY - diffY//2))
-#        
-#        # for padding issues, see 
+#
+#        # for padding issues, see
 #        # https://github.com/HaiyongJiang/U-Net-Pytorch-Unstructured-Buggy/commit/0e854509c2cea854e247a9c615f175f76fbb2e3a
 #        # https://github.com/xiaopeng-liao/Pytorch-UNet/commit/8ebac70e633bac59fc22bb5195e513d5832fb3bd
 #
@@ -211,7 +233,7 @@ Code obtained from repository: https://github.com/milesial/Pytorch-UNet
 #        return x
 #
 #
-#class outconv(nn.Module):
+# class outconv(nn.Module):
 #    def __init__(self, in_ch, out_ch):
 #        super(outconv, self).__init__()
 #        self.conv = nn.Conv2d(in_ch, out_ch, 1)
@@ -219,8 +241,8 @@ Code obtained from repository: https://github.com/milesial/Pytorch-UNet
 #    def forward(self, x):
 #        x = self.conv(x)
 #        return x
-#    
-#class UNet(nn.Module):
+#
+# class UNet(nn.Module):
 #    def __init__(self, n_channels, n_classes):
 #        super(UNet, self).__init__()
 #        self.inc = inconv(n_channels, 64)
@@ -247,7 +269,7 @@ Code obtained from repository: https://github.com/milesial/Pytorch-UNet
 #        x = self.outc(x)
 #        return F.sigmoid(x)
 #
-#class double_conv(nn.Module):
+# class double_conv(nn.Module):
 #    '''(conv => BN => ReLU) * 2'''
 #    def __init__(self, in_ch, out_ch):
 #        super(double_conv, self).__init__()

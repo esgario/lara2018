@@ -6,6 +6,9 @@ Created on Thu May  2 09:49:37 2019
 @author: esgario
 """
 
+import os
+
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from bokeh.plotting import figure
 from bokeh.io import show
 from bokeh.models import LinearAxis, Range1d
@@ -13,49 +16,65 @@ from sklearn.metrics import confusion_matrix
 import numpy as np
 import matplotlib.pyplot as plt
 
+
+RESULTS_FOLDER = "results"
+
+
 def line_graph(train, val):
-    
-    x = list(range(1, len(train)+1))
-    
-    fig = plt.figure(figsize=(4,4))
+    x = list(range(1, len(train) + 1))
+
+    fig = plt.figure(figsize=(4, 4))
     plt.ylim(40, 100)
-    plt.plot(x, train, color='b', )
-    plt.plot(x, val, color='r')
-    plt.xlabel('Época')
-    plt.ylabel('Acurácia')
-    plt.legend(['Treinamento','Teste'],loc=0)
+    plt.plot(
+        x,
+        train,
+        color="b",
+    )
+    plt.plot(x, val, color="r")
+    plt.xlabel("Época")
+    plt.ylabel("Acurácia")
+    plt.legend(["Treinamento", "Teste"], loc=0)
     plt.grid()
     plt.show()
-    fig.savefig('result.png', dpi=200)
+    fig.savefig("result.png", dpi=200)
+
 
 # Generate an static plot from results
 def static_graph(train, val):
-    
     train = np.array(train)
-    
+
     val = np.array(val)
-    
-    min_value = np.clip( min(min(train), min(val)) - 0.05, 0, 1 )
-    max_value = np.clip( max(max(train), max(val)) + 0.05, 0, 1 )
-    
+
+    min_value = np.clip(min(min(train), min(val)) - 0.05, 0, 1)
+    max_value = np.clip(max(max(train), max(val)) + 0.05, 0, 1)
+
     # Create figure
-    p = figure(x_axis_label='Epoch', y_axis_label='Accuracy', width=750, height=500,
-               y_range=(min_value, max_value), title='PyTorch ConvNet results')
-    
+    p = figure(
+        x_axis_label="Epoch",
+        y_axis_label="Accuracy",
+        width=750,
+        height=500,
+        y_range=(min_value, max_value),
+        title="PyTorch ConvNet results",
+    )
+
     # Add train line
-    p.line(np.arange(len(train)), train, color='blue')
-    
+    p.line(np.arange(len(train)), train, color="blue")
+
     # val line
-    p.line(np.arange(len(val)), val, color='red')
-    
+    p.line(np.arange(len(val)), val, color="red")
+
     show(p)
 
-def plot_confusion_matrix(cm,
-                          target_names,
-                          title='Confusion matrix',
-                          output_name='confusion_matrix',
-                          cmap=None,
-                          figsize=(5,4)):
+
+def plot_confusion_matrix(
+    cm,
+    target_names,
+    title="Confusion matrix",
+    output_name="confusion_matrix",
+    cmap=None,
+    figsize=(5, 4),
+):
     """
     given a sklearn confusion matrix (cm), make a nice plot
 
@@ -90,17 +109,16 @@ def plot_confusion_matrix(cm,
     """
     import matplotlib.pyplot as plt
     import itertools
-    
+
     cm_orig = cm.copy()
-    cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    cm = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis]
 
     if cmap is None:
-        cmap = plt.get_cmap('Blues')
-        
-        
-#    plt.figure(figsize=figsize)
+        cmap = plt.get_cmap("Blues")
+
+    #    plt.figure(figsize=figsize)
     fig = plt.figure(figsize=figsize)
-    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.imshow(cm, interpolation="nearest", cmap=cmap)
     plt.title(title)
     plt.colorbar()
 
@@ -109,50 +127,95 @@ def plot_confusion_matrix(cm,
         plt.xticks(tick_marks, target_names, rotation=45)
         plt.yticks(tick_marks, target_names)
 
-    thresh = cm.max() / 1.5 # if normalize else cm.max() / 2
+    thresh = cm.max() / 1.5  # if normalize else cm.max() / 2
     for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-        plt.text(j, i, "{:d}\n{:.3f}".format(cm_orig[i, j], cm[i,j]),
-                 horizontalalignment="center",
-                 verticalalignment="center",
-                 color="white" if cm[i, j] > thresh else "black")
-    
+        plt.text(
+            j,
+            i,
+            "{:d}\n{:.3f}".format(cm_orig[i, j], cm[i, j]),
+            horizontalalignment="center",
+            verticalalignment="center",
+            color="white" if cm[i, j] > thresh else "black",
+        )
+
     accuracy = np.trace(cm_orig) / float(np.sum(cm_orig))
     balanced_accuracy = (cm * np.identity(len(cm))).sum() / len(cm)
     misclass = 1 - accuracy
 
     plt.tight_layout()
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label\nacc={:0.4f}; error={:0.4f}; bac={:0.4f}'.format(accuracy, misclass, balanced_accuracy))
-    #plt.show()
-    
-    fig.savefig('results/' + output_name + '.png', bbox_inches='tight', dpi=200)
+    plt.ylabel("True label")
+    plt.xlabel(
+        "Predicted label\nacc={:0.4f}; error={:0.4f}; bac={:0.4f}".format(
+            accuracy, misclass, balanced_accuracy
+        )
+    )
+    # plt.show()
+
+    fig.savefig(RESULTS_FOLDER + "/" + output_name + ".png", bbox_inches="tight", dpi=200)
     plt.close(fig)
-    
+
+
 def multilabel_confusion_matrix(y_true, y_pred):
-    
-    labels = [0000, # 0  - Saudável
-              1000, # B  - Bicho mineiro
-              100,  # F  - Ferrugem
-              10,   # P  - Phoma
-              1,    # C  - Cercóspora
-              1100, # BF - Bicho mineiro e Ferrugem
-              1010, # BP - Bicho mineiro e Phoma
-              1001, # BC - Bicho mineiro e Cercóspora
-              110,  # FP - Ferrugem e Phoma
-              101,  # FC - Ferrugem e Cercóspora
-              11]   # PC - Phoma e Cercóspora
-    
-    target_names = ['0', 'B', 'F', 'P', 'C', 'BF', 'BP', 'BC', 'FP', 'FC', 'PC' ]
-    
+    labels = [
+        0000,  # 0  - Saudável
+        1000,  # B  - Bicho mineiro
+        100,  # F  - Ferrugem
+        10,  # P  - Phoma
+        1,  # C  - Cercóspora
+        1100,  # BF - Bicho mineiro e Ferrugem
+        1010,  # BP - Bicho mineiro e Phoma
+        1001,  # BC - Bicho mineiro e Cercóspora
+        110,  # FP - Ferrugem e Phoma
+        101,  # FC - Ferrugem e Cercóspora
+        11,
+    ]  # PC - Phoma e Cercóspora
+
+    target_names = ["0", "B", "F", "P", "C", "BF", "BP", "BC", "FP", "FC", "PC"]
+
     true_label = []
     pred_label = []
-    
+
     for i in range(0, len(y_true)):
-        true_label.append(sum([ y_true[i][j]*10**(3-j) for j in range(0,4) ]))
-        pred_label.append(sum([ y_pred[i][j]*10**(3-j) for j in range(0,4) ]))
-        
+        true_label.append(sum([y_true[i][j] * 10 ** (3 - j) for j in range(0, 4)]))
+        pred_label.append(sum([y_pred[i][j] * 10 ** (3 - j) for j in range(0, 4)]))
+
     cm = confusion_matrix(true_label, pred_label, labels)
     print(cm)
-    plot_confusion_matrix(cm=cm, target_names=target_names, title=' ', normalize=True, figsize=(14,11))
-    
-    
+    plot_confusion_matrix(
+        cm=cm, target_names=target_names, title=" ", normalize=True, figsize=(14, 11)
+    )
+
+
+def write_results(y_true, y_pred, clf_label, cm_target_names, cm_suffix, filename):
+    # calculate metrics
+    acc = accuracy_score(y_true, y_pred)
+    pr = precision_score(y_true, y_pred, average="macro")
+    re = recall_score(y_true, y_pred, average="macro")
+    fs = f1_score(y_true, y_pred, average="macro")
+
+    results_folder = os.path.join(RESULTS_FOLDER, clf_label)
+    if not os.path.exists(results_folder):
+        os.makedirs(results_folder)
+
+    file_path = os.path.join(results_folder, filename + ".csv")
+
+    # check if file exists
+    if not os.path.isfile(file_path):
+        # create file and write header
+        with open(file_path, "w") as fp:
+            fp.write("acc,prec,rec,fs\n")
+
+    with open(file_path, "a") as fp:
+        fp.write(
+            "%.2f,%.2f,%.2f,%.2f\n" % (acc * 100, pr * 100, re * 100, fs * 100)
+        )
+
+    # Confusion matrix
+    cm = confusion_matrix(y_true, y_pred, labels=list(range(0, 5)))
+
+    plot_confusion_matrix(
+        cm=cm,
+        target_names=cm_target_names,
+        title=" ",
+        output_name=clf_label + "/" + filename + cm_suffix,
+    )

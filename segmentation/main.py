@@ -15,24 +15,18 @@ if __name__ == "__main__":
         help="Select the desired optimization technique [sgd/adam].",
         default="sgd",
     )
-    parser.add_argument(
-        "--batch_size", type=int, help="Set images batch size", default=4
-    )
+    parser.add_argument("--batch_size", type=int, help="Set images batch size", default=4)
     parser.add_argument(
         "--weight_decay", type=float, help="Set L2 parameter norm penalty", default=5e-4
     )
-    parser.add_argument(
-        "--snapshot", type=str, help="Path to pretrained weights", default=None
-    )
+    parser.add_argument("--snapshot", type=str, help="Path to pretrained weights", default=None)
     parser.add_argument(
         "--extractor",
         type=str,
         help="Select features extractor architecture [unetresnet50/pspresnet50]",
         default="pspresnet50",
     )
-    parser.add_argument(
-        "--epochs", type=int, help="Set the number of epochs.", default=80
-    )
+    parser.add_argument("--epochs", type=int, help="Set the number of epochs.", default=80)
     parser.add_argument(
         "--data_augmentation",
         type=str,
@@ -48,7 +42,6 @@ if __name__ == "__main__":
     parser.add_argument("--train", help="Run in training mode.", action="store_true")
 
     options = parser.parse_args()
-
 
     Seg = SemanticSegmentation(parser)
 

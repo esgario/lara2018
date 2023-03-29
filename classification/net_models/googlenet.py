@@ -3,16 +3,21 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils import model_zoo
 
-__all__ = ['GoogLeNet', 'googlenet']
+__all__ = ["GoogLeNet", "googlenet"]
 
 model_urls = {
-    'googlenet': 'https://download.pytorch.org/models/googlenet-1378be20.pth',
+    "googlenet": "https://download.pytorch.org/models/googlenet-1378be20.pth",
 }
+
 
 def load_pretrained_model(model, url):
     pretrained_state = model_zoo.load_url(model_urls[url])
     model_state = model.state_dict()
-    pretrained_state = { k:v for k,v in pretrained_state.items() if k in model_state and v.size() == model_state[k].size() }
+    pretrained_state = {
+        k: v
+        for k, v in pretrained_state.items()
+        if k in model_state and v.size() == model_state[k].size()
+    }
     model_state.update(pretrained_state)
     model.load_state_dict(model_state)
     return model
@@ -25,23 +30,22 @@ def googlenet(pretrained=False, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         transform_input (bool): If True, preprocesses the input according to the method with which it
         was trained on ImageNet. Default: *False*
-    """    
+    """
     if pretrained:
-        kwargs['init_weights'] = False
+        kwargs["init_weights"] = False
         model = GoogLeNet(**kwargs)
-        load_pretrained_model(model, 'googlenet')        
+        load_pretrained_model(model, "googlenet")
         return model
 
     return GoogLeNet(**kwargs)
 
 
 class GoogLeNet(nn.Module):
-
     # select_net
     #  0 - Original
     #  1 - With two tasks
     #  2 - With four tasks
-    
+
     def __init__(self, aux_logits=False, num_classes=5, transform_input=False, init_weights=True):
         super(GoogLeNet, self).__init__()
         self.aux_logits = aux_logits
@@ -70,16 +74,15 @@ class GoogLeNet(nn.Module):
             self.aux1 = InceptionAux(512, 4)
             self.aux2 = InceptionAux(528, 5)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        
+
         self.dropout = nn.Dropout(0.5)
-        
+
         if type(num_classes) is not tuple:
             self.fc1 = nn.Linear(1024, num_classes)
             self.fc2 = None
         else:
             self.fc1 = nn.Linear(1024, num_classes[0])
             self.fc2 = nn.Linear(1024, num_classes[1])
-        
 
         if init_weights:
             self._initialize_weights()
@@ -148,27 +151,26 @@ class GoogLeNet(nn.Module):
         x = self.avgpool(x)
         # N x 1024 x 1 x 1
         x = x.view(x.size(0), -1)
-        
+
         # N x 1024
         x = self.dropout(x)
-        
+
         if self.fc2 is None:
             x = self.fc1(x)
-            
+
             if self.training and self.aux_logits:
                 return aux1, aux2, x
             return x
         else:
             x1 = self.fc1(x)
             x2 = self.fc2(x)
-            
+
             if self.training and self.aux_logits:
                 return aux1, aux2, x1, x2
             return x1, x2
 
 
 class Inception(nn.Module):
-
     def __init__(self, in_channels, ch1x1, ch3x3red, ch3x3, ch5x5red, ch5x5, pool_proj):
         super(Inception, self).__init__()
 
@@ -176,17 +178,17 @@ class Inception(nn.Module):
 
         self.branch2 = nn.Sequential(
             BasicConv2d(in_channels, ch3x3red, kernel_size=1),
-            BasicConv2d(ch3x3red, ch3x3, kernel_size=3, padding=1)
+            BasicConv2d(ch3x3red, ch3x3, kernel_size=3, padding=1),
         )
 
         self.branch3 = nn.Sequential(
             BasicConv2d(in_channels, ch5x5red, kernel_size=1),
-            BasicConv2d(ch5x5red, ch5x5, kernel_size=3, padding=1)
+            BasicConv2d(ch5x5red, ch5x5, kernel_size=3, padding=1),
         )
 
         self.branch4 = nn.Sequential(
             nn.MaxPool2d(kernel_size=3, stride=1, padding=1, ceil_mode=True),
-            BasicConv2d(in_channels, pool_proj, kernel_size=1)
+            BasicConv2d(in_channels, pool_proj, kernel_size=1),
         )
 
     def forward(self, x):
@@ -200,7 +202,6 @@ class Inception(nn.Module):
 
 
 class InceptionAux(nn.Module):
-
     def __init__(self, in_channels, num_classes):
         super(InceptionAux, self).__init__()
         self.conv = BasicConv2d(in_channels, 128, kernel_size=1)
@@ -227,7 +228,6 @@ class InceptionAux(nn.Module):
 
 
 class BasicConv2d(nn.Module):
-
     def __init__(self, in_channels, out_channels, **kwargs):
         super(BasicConv2d, self).__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)

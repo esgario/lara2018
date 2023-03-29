@@ -10,8 +10,8 @@ import json
 
 def recursive_glob(rootdir=".", suffix=""):
     """Performs recursive glob with given suffix and rootdir
-        :param rootdir is the root directory
-        :param suffix is the suffix to be searched
+    :param rootdir is the root directory
+    :param suffix is the suffix to be searched
     """
     return [
         os.path.join(looproot, filename)
@@ -20,24 +20,24 @@ def recursive_glob(rootdir=".", suffix=""):
         if filename.endswith(suffix)
     ]
 
-class SegmentationLoader(data.Dataset):
 
+class SegmentationLoader(data.Dataset):
     mean_rgb = {
         "standard": [0.0, 0.0, 0.0],
     }
 
     def __init__(
         self,
-        root='dataset',
-        images_folder='images',
-        annotations_folder='annotations',
+        root="dataset",
+        images_folder="images",
+        annotations_folder="annotations",
         split="train",
         is_transform=True,
         img_size=(512, 256),
         augmentations=None,
         img_norm=True,
         test_mode=False,
-        version="standard"
+        version="standard",
     ):
         """__init__
         :param root:
@@ -59,18 +59,18 @@ class SegmentationLoader(data.Dataset):
         self.annotations_base = os.path.join(self.root, annotations_folder, self.split)
 
         self.files[split] = recursive_glob(rootdir=self.images_base, suffix=".jpg")
-        
+
         # Reading dataset info
-        self.data = pd.read_csv(os.path.join(self.root, 'dataset.csv'))
-        with open(os.path.join(self.root, 'annotations-info.txt')) as json_file:
+        self.data = pd.read_csv(os.path.join(self.root, "dataset.csv"))
+        with open(os.path.join(self.root, "annotations-info.txt")) as json_file:
             annotations_info = json.load(json_file)
-        
+
         # colors
-        self.colors = annotations_info['colors']
+        self.colors = annotations_info["colors"]
         self.label_colours = dict(zip(range(3), self.colors))
-        
+
         # class names
-        self.class_names = annotations_info['class_names']
+        self.class_names = annotations_info["class_names"]
         self.n_classes = len(self.class_names)
 
         if not self.files[split]:
@@ -96,14 +96,14 @@ class SegmentationLoader(data.Dataset):
         img = np.array(img, dtype=np.uint8)
 
         lbl = m.imread(lbl_path)
-        
+
         idx = int(os.path.basename(img_path)[:-4]) - 1
-        cls = torch.tensor([1., 1., 0])
+        cls = torch.tensor([1.0, 1.0, 0])
         cls[2] = torch.tensor(self.data.iloc[idx, -1]) > 0
-        
+
         if self.augmentations is not None:
             img, lbl = self.augmentations(img, lbl)
-        
+
         lbl = self.encode_segmap(np.array(lbl, dtype=np.uint8))
 
         if self.is_transform:
@@ -128,9 +128,11 @@ class SegmentationLoader(data.Dataset):
         img = img.transpose(2, 0, 1)
 
         classes = np.unique(lbl)
-        
+
         lbl = lbl.astype(float)
-        lbl = cv2.resize(lbl, (self.img_size[0], self.img_size[1]), interpolation=cv2.INTER_NEAREST)
+        lbl = cv2.resize(
+            lbl, (self.img_size[0], self.img_size[1]), interpolation=cv2.INTER_NEAREST
+        )
         lbl = lbl.astype(int)
 
         if not np.all(classes == np.unique(lbl)):
@@ -172,36 +174,45 @@ class SegmentationLoader(data.Dataset):
         label_mask = label_mask.astype(int)
         return label_mask
 
-            
+
 # Leave code for debugging purposes
 # import ptsemseg.augmentations as aug
-if __name__ == '__main__':
-    
-    from augmentations import Compose, RandomHorizontallyFlip, RandomVerticallyFlip, RandomRotate, Scale
+if __name__ == "__main__":
+    from augmentations import (
+        Compose,
+        RandomHorizontallyFlip,
+        RandomVerticallyFlip,
+        RandomRotate,
+        Scale,
+    )
     from augmentations import AdjustContrast, AdjustBrightness, AdjustSaturation
     import matplotlib.pyplot as plt
 
     bs = 4
-    augmentations = Compose([Scale(512),
-                             RandomRotate(10),
-                             RandomHorizontallyFlip(0.5),
-                             RandomVerticallyFlip(0.5),
-                             AdjustContrast(0.25),
-                             AdjustBrightness(0.25),
-                             AdjustSaturation(0.25)])
-            
-    dst = SegmentationLoader(root='../dataset/', is_transform=True, augmentations=augmentations)
+    augmentations = Compose(
+        [
+            Scale(512),
+            RandomRotate(10),
+            RandomHorizontallyFlip(0.5),
+            RandomVerticallyFlip(0.5),
+            AdjustContrast(0.25),
+            AdjustBrightness(0.25),
+            AdjustSaturation(0.25),
+        ]
+    )
+
+    dst = SegmentationLoader(root="../dataset/", is_transform=True, augmentations=augmentations)
     trainloader = data.DataLoader(dst, batch_size=bs)
-    
+
     for i, data_samples in enumerate(trainloader):
         imgs, labels, cls = data_samples
         imgs = imgs.numpy()[:, ::-1, :, :]
-        imgs = np.transpose(imgs, [0,2,3,1])
+        imgs = np.transpose(imgs, [0, 2, 3, 1])
         f, axarr = plt.subplots(bs, 2)
-    
+
         for j in range(bs):
             print(imgs[j].shape)
             axarr[j][0].imshow(imgs[j])
             axarr[j][1].imshow(dst.decode_segmap(labels.numpy()[j]))
-            
+
         plt.show()
