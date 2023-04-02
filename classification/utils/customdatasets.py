@@ -9,14 +9,16 @@ import os
 import torch
 import numpy as np
 import pandas as pd
+
 from PIL import Image
 from torch.utils.data.dataset import Dataset
+from utils.enums import Tasks
 
 
 class CoffeeLeavesDataset(Dataset):
     """Coffee Leaves Dataset."""
 
-    def __init__(self, csv_file, images_dir, dataset, fold=1, select_dataset=0, transforms=None):
+    def __init__(self, csv_file, images_dir, dataset, fold=1, model_task=None, transforms=None):
         """
         Args:
             csv_file (string): Path to the csv file with annotations.
@@ -28,7 +30,7 @@ class CoffeeLeavesDataset(Dataset):
         self.fold = fold
         self.data = self.split_dataset(pd.read_csv(csv_file), dataset)
         self.images_dir = images_dir
-        self.select_dataset = select_dataset
+        self.task = model_task
         self.transformations = transforms
 
     def __len__(self):
@@ -52,10 +54,10 @@ class CoffeeLeavesDataset(Dataset):
         label_sev = torch.tensor(label_sev, dtype=torch.long)
 
         # Multitask
-        if self.select_dataset == 0:
+        if self.task == Tasks.MULTITASK:
             return (image, label_dis, label_sev)
         # Disease
-        elif self.select_dataset == 1:
+        elif self.task == Tasks.BIOTIC_STRESS:
             return (image, label_dis)
         # Severity
         else:

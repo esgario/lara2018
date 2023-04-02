@@ -1,123 +1,37 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Jun 24 16:47:19 2019
-
-@author: esgario
-"""
-
 import os
 import sys
+import json
+
 import numpy as np
+from sklearn.metrics import accuracy_score, f1_score
 
 import torch
 import torch.nn as nn
-import torchvision
-import torchvision.transforms as transforms
-from torch.utils.data.sampler import WeightedRandomSampler
 from torch.nn.utils.clip_grad import clip_grad_norm_
 
+from loaders import data_loader
+from architectures import cnn_model
+from deep_training import ModelTraining
+
+from utils.enums import Tasks
 from utils.augmentation import between_class, mixup_data, mixup_criterion
-from utils.customdatasets import CoffeeLeavesDataset
-from utils.utils import static_graph, plot_confusion_matrix, write_results
-from net_models import (
-    shallow,
-    resnet34,
-    resnet50,
-    resnet101,
-    alexnet,
-    googlenet,
-    vgg16,
-    mobilenet_v2,
-)
-
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from sklearn.metrics import confusion_matrix
-
-import pickle
-import math
-
-clf_label = ["leaf_multitask", "leaf_disease", "leaf_severity", "symptom"]
+from utils.utils import write_results
 
 
-def cnn_model(model_name, pretrained=False, num_classes=(5, 5)):
-    if model_name == "shallow":
-        model = shallow(num_classes)
-
-    if model_name == "resnet34":
-        model = resnet34(pretrained=pretrained, num_classes=num_classes)
-
-    if model_name == "resnet50":
-        model = resnet50(pretrained=pretrained, num_classes=num_classes)
-
-    if model_name == "resnet101":
-        model = resnet101(pretrained=pretrained, num_classes=num_classes)
-
-    if model_name == "alexnet":
-        model = alexnet(pretrained=pretrained, num_classes=num_classes)
-
-    if model_name == "googlenet":
-        model = googlenet(pretrained=pretrained, num_classes=num_classes)
-
-    if model_name == "vgg16":
-        model = vgg16(pretrained=pretrained, num_classes=num_classes)
-
-    if model_name == "mobilenet_v2":
-        model = mobilenet_v2(pretrained=pretrained, num_classes=num_classes)
-
-    if torch.cuda.is_available():
-        model.cuda()
-
-    return model
-
-
-def sampler(dataset, opt):
-    # Multiclass umbalanced dataset
-    if opt.select_clf == 0:
-        balance_factor = 20
-
-        data = np.array(dataset.data)
-        dis = data[:, 1]
-        sev = data[:, -1]
-
-        total = len(dis)
-        samplesWeight = np.zeros(total)
-
-        for d in range(5):
-            for s in range(5):
-                targets_sum = sum([a and b for a, b in zip(dis == d, sev == s)])
-
-                idx = np.where([a and b for a, b in zip(dis == d, sev == s)])
-                samplesWeight[idx] = 1 / ((targets_sum + balance_factor) / total)
-
-    elif opt.select_clf < 3:
-        data = np.array(dataset.data)
-        labels = data[:, 1] if opt.select_clf == 1 else data[:, -1]
-
-        total = len(labels)
-        samplesWeight = np.zeros(total)
-
-        for i in range(5):
-            targets_sum = sum(labels == i)
-            idx = np.where(labels == i)
-            samplesWeight[idx] = 1 / ((targets_sum) / total)
-
-    # Others
+def clf_label(opt):
+    if opt.dataset == "leaf":
+        if opt.model_task == Tasks.MULTITASK:
+            return "leaf_multitask"
+        elif opt.model_task == Tasks.BIOTIC_STRESS:
+            return "leaf_disease"
+        else:
+            return "leaf_severity"
     else:
-        targets = np.array([x[1] for x in dataset.samples])
-        total = len(targets)
+        return "symptom"
 
-        samplesWeight = np.zeros(total)
 
-        for t in np.unique(targets):
-            idx = np.where(targets == t)[0]
-
-            samplesWeight[idx] = 1 / (len(idx) / total)
-
-    samplesWeight = samplesWeight / sum(samplesWeight)
-    samplesWeight = torch.from_numpy(samplesWeight).double()
-
-    return WeightedRandomSampler(samplesWeight, len(samplesWeight))
+def get_file_path(opt, folder, extension):
+    return os.path.join(folder, clf_label(opt), opt.filename + extension)
 
 
 def eval_metrics(metric, y_pred, y_true, y2_true=None, lam=None):
@@ -142,111 +56,11 @@ def eval_metrics(metric, y_pred, y_true, y2_true=None, lam=None):
     return None
 
 
-def adjust_learning_rate(optimizer, epoch, opt):
-    if opt.optimizer == "sgd":
-        lr_values = [0.01, 0.005, 0.001, 0.0005, 0.0001]
-        step = round(opt.epochs / 5)
-
-        idx = min(math.floor(epoch / step), len(lr_values))
-        learning_rate = lr_values[idx]
-
-        for param_group in optimizer.param_groups:
-            param_group["lr"] = learning_rate
-
-    return optimizer
-
-
-def data_loader(opt):
-    # Transforms
-    train_transforms = transforms.Compose(
-        [
-            transforms.Resize((224, 224)),
-            transforms.RandomHorizontalFlip(0.5),
-            transforms.RandomVerticalFlip(0.5),
-            transforms.RandomApply([transforms.RandomRotation(10)], 0.25),
-            transforms.ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        ]
-    )
-
-    val_transforms = transforms.Compose(
-        [
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        ]
-    )
-
-    # Dataset
-    if opt.select_clf < 3:
-        train_dataset = CoffeeLeavesDataset(
-            csv_file=opt.csv_file,
-            images_dir=opt.images_dir,
-            dataset="train",
-            fold=opt.fold,
-            select_dataset=opt.select_clf,
-            transforms=train_transforms,
-        )
-
-        val_dataset = CoffeeLeavesDataset(
-            csv_file=opt.csv_file,
-            images_dir=opt.images_dir,
-            dataset="val",
-            fold=opt.fold,
-            select_dataset=opt.select_clf,
-            transforms=val_transforms,
-        )
-
-        test_dataset = CoffeeLeavesDataset(
-            csv_file=opt.csv_file,
-            images_dir=opt.images_dir,
-            dataset="test",
-            fold=opt.fold,
-            select_dataset=opt.select_clf,
-            transforms=val_transforms,
-        )
-
-    else:
-        train_dataset = torchvision.datasets.ImageFolder(
-            root=opt.images_dir + "/train/", transform=train_transforms
-        )
-
-        val_dataset = torchvision.datasets.ImageFolder(
-            root=opt.images_dir + "/val/", transform=val_transforms
-        )
-
-        test_dataset = torchvision.datasets.ImageFolder(
-            root=opt.images_dir + "/test/", transform=val_transforms
-        )
-
-    # Loader
-    if opt.balanced_dataset:
-        train_loader = torch.utils.data.DataLoader(
-            dataset=train_dataset, batch_size=opt.batch_size, sampler=sampler(train_dataset, opt)
-        )
-    else:
-        train_loader = torch.utils.data.DataLoader(
-            dataset=train_dataset, batch_size=opt.batch_size, shuffle=True
-        )
-
-    val_loader = torch.utils.data.DataLoader(
-        dataset=val_dataset, batch_size=opt.batch_size, shuffle=False
-    )
-
-    test_loader = torch.utils.data.DataLoader(
-        dataset=test_dataset, batch_size=opt.batch_size, shuffle=False
-    )
-
-    return train_loader, val_loader, test_loader
-
-
-# -------------------------------------------------------------------------------------- #
-
-
-class MultiTaskClf:
-    def __init__(self, parser):
-        self.opt = parser.parse_args()
+class MultiTaskClf(ModelTraining):
+    def __init__(self, options, images_dir: str):
+        self.opt = options
+        self.opt.num_classes = (5, 5)
+        self.images_dir = images_dir
 
     def train(self, train_loader, model, criterion, optimizer, data_augmentation=None):
         # tell to pytorch that we are training the model
@@ -348,6 +162,7 @@ class MultiTaskClf:
                 train_metrics[x] = 100.0 * train_metrics[x] / len(train_loader.dataset)
             else:
                 train_metrics[x] = train_metrics[x] / len(train_loader.dataset)
+            train_metrics[x] = float(train_metrics[x])
 
         return train_metrics
 
@@ -409,6 +224,7 @@ class MultiTaskClf:
                 val_metrics[x] = 100.0 * val_metrics[x] / len(val_loader.dataset)
             else:
                 val_metrics[x] = val_metrics[x] / len(val_loader.dataset)
+            val_metrics[x] = float(val_metrics[x])
 
         return val_metrics
 
@@ -431,13 +247,13 @@ class MultiTaskClf:
         )
 
     def run_training(self):
-        print(clf_label[self.opt.select_clf] + " training: " + self.opt.filename)
+        print(clf_label(self.opt) + " training: " + self.opt.filename)
 
         # Dataset
-        train_loader, val_loader, _ = data_loader(self.opt)
+        train_loader, val_loader, _ = data_loader(self.opt, self.images_dir)
 
         # Model
-        model = cnn_model(self.opt.model, self.opt.pretrained, (5, 5))
+        model = cnn_model(self.opt.model, self.opt.pretrained, self.opt.num_classes)
 
         # Criterion
         criterion_train = (
@@ -490,7 +306,7 @@ class MultiTaskClf:
             )
 
             # Adjust learning rate
-            optimizer = adjust_learning_rate(optimizer, epoch, self.opt)
+            optimizer = self.adjust_learning_rate(optimizer, epoch, self.opt)
 
             # Recording metrics
             record["train_loss"].append(train_metrics["loss"])
@@ -507,32 +323,24 @@ class MultiTaskClf:
                 best_fs = curr_fs
 
                 # Saving model
-                torch.save(
-                    model,
-                    "net_weights/"
-                    + clf_label[self.opt.select_clf]
-                    + "/"
-                    + self.opt.filename
-                    + ".pth",
-                )
+                torch.save(model.state_dict(), get_file_path(self.opt, "net_weights", ".pth"))
                 print("model saved")
 
             # Saving log
-            with open(os.path.join("log", clf_label[self.opt.select_clf], self.opt.filename + ".pkl"), "wb") as fp:
-                pickle.dump(record, fp)
+            with open(get_file_path(self.opt, "log", ".json"), "w") as fp:
+                json.dump(record, fp, indent=4, sort_keys=True)
 
         # Plot
         # static_graph(np.array(record['train_dis_acc'])/100, np.array(record['val_dis_acc'])/100)
 
     def run_test(self):
         # Dataset
-        _, _, test_loader = data_loader(self.opt)
+        _, _, test_loader = data_loader(self.opt, self.images_dir)
 
         # Loading model
-        model = torch.load(
-            "net_weights/" + clf_label[self.opt.select_clf] + "/" + self.opt.filename + ".pth"
-        )
-        model.cuda()
+        weights_path = get_file_path(self.opt, "net_weights", ".pth")
+        model = cnn_model(self.opt.model, self.opt.pretrained, self.opt.num_classes, weights_path)
+
         # tell to pytorch that we are evaluating the model
         model.eval()
 
@@ -573,28 +381,27 @@ class MultiTaskClf:
         write_results(
             y_true=y_true_dis,
             y_pred=y_pred_dis,
-            clf_label=clf_label[self.opt.select_clf],
+            clf_label=clf_label(self.opt),
             cm_target_names=["Healthy", "Leaf miner", "Rust", "Phoma", "Cercospora"],
             cm_suffix="_dis",
-            filename=self.opt.filename
+            filename=self.opt.filename,
         )
 
         # Severity
         write_results(
             y_true=y_true_sev,
             y_pred=y_pred_sev,
-            clf_label=clf_label[self.opt.select_clf],
+            clf_label=clf_label(self.opt),
             cm_target_names=["Healthy", "Very low", "Low", "High", "Very high"],
             cm_suffix="_sev",
-            filename=self.opt.filename
+            filename=self.opt.filename,
         )
 
         return y_true_dis, y_pred_dis, y_true_sev, y_pred_sev
 
     def get_n_params(self):
-        model = torch.load(
-            "net_weights/" + clf_label[self.opt.select_clf] + "/" + self.opt.filename + ".pth"
-        )
+        weights_path = get_file_path(self.opt, "net_weights", ".pth")
+        model = cnn_model(self.opt.model, self.opt.pretrained, (5, 5), weights_path)
         pp = 0
         for p in list(model.parameters()):
             nn = 1
@@ -607,9 +414,11 @@ class MultiTaskClf:
 # ---------------------------------------------------------------------- #
 
 
-class OneTaskClf:
-    def __init__(self, parser):
-        self.opt = parser.parse_args()
+class OneTaskClf(ModelTraining):
+    def __init__(self, options, images_dir):
+        self.opt = options
+        self.opt.num_classes = 5
+        self.images_dir = images_dir
 
     def train(self, train_loader, model, criterion, optimizer, data_augmentation=None):
         # tell to pytorch that we are training the model
@@ -764,13 +573,13 @@ class OneTaskClf:
         )
 
     def run_training(self):
-        print(clf_label[self.opt.select_clf] + " training: " + self.opt.filename)
+        print(clf_label(self.opt) + " training: " + self.opt.filename)
 
         # Data
-        train_loader, val_loader, _ = data_loader(self.opt)
+        train_loader, val_loader, _ = data_loader(self.opt, self.images_dir)
 
         # Model
-        model = cnn_model(self.opt.model, self.opt.pretrained, 5)
+        model = cnn_model(self.opt.model, self.opt.pretrained, self.opt.num_classes)
 
         # Criterion
         criterion_train = (
@@ -821,7 +630,7 @@ class OneTaskClf:
             )
 
             # Adjust learning rate
-            optimizer = adjust_learning_rate(optimizer, epoch, self.opt)
+            optimizer = self.adjust_learning_rate(optimizer, epoch, self.opt)
 
             # Recording metrics
             record["train_loss"].append(train_metrics["loss"])
@@ -837,31 +646,27 @@ class OneTaskClf:
 
                 # Saving model
                 torch.save(
-                    model,
-                    "net_weights/"
-                    + clf_label[self.opt.select_clf]
-                    + "/"
-                    + self.opt.filename
-                    + ".pth",
+                    model.state_dict(),
+                    get_file_path(self.opt, "net_weights", ".pth"),
                 )
                 print("model saved")
 
             # Saving log
-            with open(os.path.join("log", clf_label[self.opt.select_clf], self.opt.filename + ".pkl"), "wb") as fp:
-                pickle.dump(record, fp)
+            with open(get_file_path(self.opt, "log", ".json"), "w") as fp:
+                json.dump(record, fp, indent=4, sort_keys=True)
 
         # Plot
         # static_graph(np.array(record['train_acc'])/100, np.array(record['val_acc'])/100)
 
     def run_test(self):
         # Dataset
-        _, _, test_loader = data_loader(self.opt)
+        _, _, test_loader = data_loader(self.opt, self.images_dir)
 
         # Loading model
-        model = torch.load(
-            "net_weights/" + clf_label[self.opt.select_clf] + "/" + self.opt.filename + ".pth"
-        )
-        model.cuda()
+        weights_path = get_file_path(self.opt, "net_weights", ".pth")
+        model = cnn_model(self.opt.model, self.opt.pretrained, self.opt.num_classes, weights_path)
+
+        # tell to pytorch that we are evaluating the model
         model.eval()
 
         y_pred = np.empty(0)
@@ -882,15 +687,15 @@ class OneTaskClf:
                 y_true = np.concatenate((y_true, labels.data.cpu().numpy()))
 
         # Biotic stress labels
-        if self.opt.select_clf != 2:
-            labels = ["Healhty", "Leaf miner", "Rust", "Phoma", "Cercospora"]
-        else:
+        if self.opt.model_task == Tasks.SEVERITY:
             labels = ["Healthy", "Very low", "Low", "High", "Very high"]
+        else:
+            labels = ["Healhty", "Leaf miner", "Rust", "Phoma", "Cercospora"]
 
         write_results(
             y_true=y_true,
             y_pred=y_pred,
-            clf_label=clf_label[self.opt.select_clf],
+            clf_label=clf_label(self.opt),
             cm_target_names=labels,
             cm_suffix="",
             filename=self.opt.filename,
@@ -899,9 +704,8 @@ class OneTaskClf:
         return y_true, y_pred
 
     def get_n_params(self):
-        model = torch.load(
-            "net_weights/" + clf_label[self.opt.select_clf] + "/" + self.opt.filename + ".pth"
-        )
+        weights_path = get_file_path(self.opt, "net_weights", ".pth")
+        model = cnn_model(self.opt.model, self.opt.pretrained, 5, weights_path)
         pp = 0
         for p in list(model.parameters()):
             nn = 1
