@@ -62,7 +62,7 @@ def sampler(dataset, opt):
     return WeightedRandomSampler(samplesWeight, len(samplesWeight))
 
 
-def data_loader(opt, images_dir: str):
+def data_loader(opt):
     # Transforms
     train_transforms = transforms.Compose(
         [
@@ -88,7 +88,7 @@ def data_loader(opt, images_dir: str):
     if opt.dataset == "leaf":
         train_dataset = CoffeeLeavesDataset(
             csv_file=opt.csv_file,
-            images_dir=images_dir,
+            images_dir=opt.images_dir,
             dataset="train",
             fold=opt.fold,
             model_task=opt.model_task,
@@ -97,7 +97,7 @@ def data_loader(opt, images_dir: str):
 
         val_dataset = CoffeeLeavesDataset(
             csv_file=opt.csv_file,
-            images_dir=images_dir,
+            images_dir=opt.images_dir,
             dataset="val",
             fold=opt.fold,
             model_task=opt.model_task,
@@ -106,7 +106,7 @@ def data_loader(opt, images_dir: str):
 
         test_dataset = CoffeeLeavesDataset(
             csv_file=opt.csv_file,
-            images_dir=images_dir,
+            images_dir=opt.images_dir,
             dataset="test",
             fold=opt.fold,
             model_task=opt.model_task,
@@ -116,15 +116,15 @@ def data_loader(opt, images_dir: str):
     # Dataset: Symptom
     else:
         train_dataset = torchvision.datasets.ImageFolder(
-            root=images_dir + "/train/", transform=train_transforms
+            root=opt.images_dir + "/train/", transform=train_transforms
         )
 
         val_dataset = torchvision.datasets.ImageFolder(
-            root=images_dir + "/val/", transform=val_transforms
+            root=opt.images_dir + "/val/", transform=val_transforms
         )
 
         test_dataset = torchvision.datasets.ImageFolder(
-            root=images_dir + "/test/", transform=val_transforms
+            root=opt.images_dir + "/test/", transform=val_transforms
         )
 
     # Loader

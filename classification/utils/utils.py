@@ -196,16 +196,18 @@ def write_results(y_true, y_pred, clf_label, cm_target_names, cm_suffix, filenam
     if not os.path.exists(results_folder):
         os.makedirs(results_folder)
 
+    print("Saving results to %s" % results_folder)
+
     file_path = os.path.join(results_folder, filename + ".csv")
 
     # check if file exists
     if not os.path.isfile(file_path):
         # create file and write header
         with open(file_path, "w") as fp:
-            fp.write("acc,prec,rec,fs\n")
+            fp.write("experiment,acc,prec,rec,fs\n")
 
     with open(file_path, "a") as fp:
-        fp.write("%.2f,%.2f,%.2f,%.2f\n" % (acc * 100, pr * 100, re * 100, fs * 100))
+        fp.write("%s,%.2f,%.2f,%.2f,%.2f\n" % (filename+cm_suffix, acc * 100, pr * 100, re * 100, fs * 100))
 
     # Confusion matrix
     cm = confusion_matrix(y_true, y_pred, labels=list(range(0, 5)))

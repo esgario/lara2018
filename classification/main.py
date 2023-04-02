@@ -1,7 +1,7 @@
 import sys
 import warnings
 import argparse
-from classifiers import OneTaskClf, MultiTaskClf
+from classifiers import SingleTaskClassifier, MultiTaskClassifier
 from utils.enums import Tasks
 
 if not sys.warnoptions:
@@ -93,11 +93,16 @@ if __name__ == "__main__":
         options.train or options.test
     ), "You must specify wheter you want to train or test a model."
 
+    assert options.dataset in [
+        "leaf",
+        "symptom",
+    ], "You must specify a valid dataset."
+
     # Initialize the classifier
     if options.model_task == Tasks.MULTITASK:
-        Clf = MultiTaskClf(options, images_dir=f"dataset/{options.dataset}")
+        Clf = MultiTaskClassifier(options, images_dir=f"dataset/{options.dataset}")
     else:
-        Clf = OneTaskClf(options, images_dir=f"dataset/{options.dataset}")
+        Clf = SingleTaskClassifier(options, images_dir=f"dataset/{options.dataset}")
 
     # Run the classifier
     if options.train:

@@ -24,8 +24,9 @@ class CoffeeLeavesDataset(Dataset):
             csv_file (string): Path to the csv file with annotations.
             images_dir (string): Directory with all the images.
             dataset (string) : Select the desired dataset - 'train', 'val' or 'test'
-            transforms : Image transformations
             fold (int{1,5}) : The data is changed based on the selected fold
+            model_task (string) : Select the desired task - 'multitask', 'biotic_stress' or 'severity'
+            transforms : Image transformations
         """
         self.fold = fold
         self.data = self.split_dataset(pd.read_csv(csv_file), dataset)
