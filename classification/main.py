@@ -1,7 +1,8 @@
 import sys
 import warnings
 import argparse
-from classifiers import OneTaskClf, MultiTaskClf
+from classifiers import SingleTaskClassifier, MultiTaskClassifier
+from utils.enums import Tasks
 
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
@@ -63,34 +64,52 @@ if __name__ == "__main__":
     parser.add_argument("--train", help="Run in training mode.", action="store_true")
     parser.add_argument("--test", help="Run in test mode.", action="store_true")
     parser.add_argument(
-        "--select_clf",
-        help="Select the experiment to run. Leaf dataset: (0) multitask, (1) biotic stress only, (2) severity only. Symptom dataset: (3) biotic stress only.",
+        "--dataset",
+        help="Select the dataset to use. Options: leaf, symptom",
+        type=str,
+        default="leaf",
+    )
+    parser.add_argument(
+        "--model_task",
+        help=(
+            "Select the model task according to the dataset. "
+            "Leaf dataset: (0) biotic stress only, (1) severity only, (2) multitask. "
+            "Symptom dataset: (0) biotic stress only."
+        ),
         type=int,
-        default=0,
+        default=2,
     )
 
+    # Parse the arguments
     options = parser.parse_args()
 
+    if options.dataset == "leaf":
+        options.model_task = Tasks(options.model_task)
+    else:
+        options.model_task = Tasks.BIOTIC_STRESS
+
+    # Validate the arguments
     assert (
         options.train or options.test
     ), "You must specify wheter you want to train or test a model."
 
-    # Leaf Dataset
-    if options.select_clf < 3:
-        parser.add_argument("--images_dir", type=str, default="dataset/leaf")
-        Clf = MultiTaskClf(parser) if options.select_clf == 0 else OneTaskClf(parser)
+    assert options.dataset in [
+        "leaf",
+        "symptom",
+    ], "You must specify a valid dataset."
 
-    # Symptom Dataset
+    # Initialize the classifier
+    if options.model_task == Tasks.MULTITASK:
+        Clf = MultiTaskClassifier(options, images_dir=f"dataset/{options.dataset}")
     else:
-        parser.add_argument("--images_dir", type=str, default="dataset/symptom")
-        Clf = OneTaskClf(parser)
+        Clf = SingleTaskClassifier(options, images_dir=f"dataset/{options.dataset}")
 
+    # Run the classifier
     if options.train:
         Clf.run_training()
 
     if options.test:
-        if options.select_clf == 0:
+        if options.model_task == Tasks.MULTITASK:
             y_true_dis, y_pred_dis, y_true_sev, y_pred_sev = Clf.run_test()
-
         else:
             y_true, y_pred = Clf.run_test()

@@ -1,260 +1,57 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Jun 24 16:47:19 2019
-
-@author: esgario
-"""
-
 import os
 import sys
+import json
+
 import numpy as np
+from tqdm import tqdm
 
 import torch
 import torch.nn as nn
-import torchvision
-import torchvision.transforms as transforms
-from torch.utils.data.sampler import WeightedRandomSampler
 from torch.nn.utils.clip_grad import clip_grad_norm_
 
+from loaders import data_loader
+from architectures import cnn_model
+from deep_training import ModelTraining
+
+from utils.enums import Tasks
 from utils.augmentation import between_class, mixup_data, mixup_criterion
-from utils.customdatasets import CoffeeLeavesDataset
-from utils.utils import static_graph, plot_confusion_matrix, write_results
-from net_models import (
-    shallow,
-    resnet34,
-    resnet50,
-    resnet101,
-    alexnet,
-    googlenet,
-    vgg16,
-    mobilenet_v2,
-)
-
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from sklearn.metrics import confusion_matrix
-
-import pickle
-import math
-
-clf_label = ["leaf_multitask", "leaf_disease", "leaf_severity", "symptom"]
+from utils.utils import write_results
+from utils.metrics import accuracy_mixup, accuracy_score, f1_score
 
 
-def cnn_model(model_name, pretrained=False, num_classes=(5, 5)):
-    if model_name == "shallow":
-        model = shallow(num_classes)
-
-    if model_name == "resnet34":
-        model = resnet34(pretrained=pretrained, num_classes=num_classes)
-
-    if model_name == "resnet50":
-        model = resnet50(pretrained=pretrained, num_classes=num_classes)
-
-    if model_name == "resnet101":
-        model = resnet101(pretrained=pretrained, num_classes=num_classes)
-
-    if model_name == "alexnet":
-        model = alexnet(pretrained=pretrained, num_classes=num_classes)
-
-    if model_name == "googlenet":
-        model = googlenet(pretrained=pretrained, num_classes=num_classes)
-
-    if model_name == "vgg16":
-        model = vgg16(pretrained=pretrained, num_classes=num_classes)
-
-    if model_name == "mobilenet_v2":
-        model = mobilenet_v2(pretrained=pretrained, num_classes=num_classes)
-
-    if torch.cuda.is_available():
-        model.cuda()
-
-    return model
-
-
-def sampler(dataset, opt):
-    # Multiclass umbalanced dataset
-    if opt.select_clf == 0:
-        balance_factor = 20
-
-        data = np.array(dataset.data)
-        dis = data[:, 1]
-        sev = data[:, -1]
-
-        total = len(dis)
-        samplesWeight = np.zeros(total)
-
-        for d in range(5):
-            for s in range(5):
-                targets_sum = sum([a and b for a, b in zip(dis == d, sev == s)])
-
-                idx = np.where([a and b for a, b in zip(dis == d, sev == s)])
-                samplesWeight[idx] = 1 / ((targets_sum + balance_factor) / total)
-
-    elif opt.select_clf < 3:
-        data = np.array(dataset.data)
-        labels = data[:, 1] if opt.select_clf == 1 else data[:, -1]
-
-        total = len(labels)
-        samplesWeight = np.zeros(total)
-
-        for i in range(5):
-            targets_sum = sum(labels == i)
-            idx = np.where(labels == i)
-            samplesWeight[idx] = 1 / ((targets_sum) / total)
-
-    # Others
+def clf_label(opt):
+    if opt.dataset == "leaf":
+        if opt.model_task == Tasks.MULTITASK:
+            return "leaf_multitask"
+        elif opt.model_task == Tasks.BIOTIC_STRESS:
+            return "leaf_disease"
+        else:
+            return "leaf_severity"
     else:
-        targets = np.array([x[1] for x in dataset.samples])
-        total = len(targets)
-
-        samplesWeight = np.zeros(total)
-
-        for t in np.unique(targets):
-            idx = np.where(targets == t)[0]
-
-            samplesWeight[idx] = 1 / (len(idx) / total)
-
-    samplesWeight = samplesWeight / sum(samplesWeight)
-    samplesWeight = torch.from_numpy(samplesWeight).double()
-
-    return WeightedRandomSampler(samplesWeight, len(samplesWeight))
+        return "symptom"
 
 
-def eval_metrics(metric, y_pred, y_true, y2_true=None, lam=None):
-    # If it is not using Mix Up
-    if y2_true is None:
-        if metric == "acc":
-            return accuracy_score(y_true, y_pred)
-
-        if metric == "fs":
-            return f1_score(y_true, y_pred, average="macro")
-    else:
-        if metric == "acc":
-            return lam * accuracy_score(y_true, y_pred) + (1 - lam) * accuracy_score(
-                y2_true, y_pred
-            )
-
-        if metric == "fs":
-            return lam * f1_score(y_true, y_pred, average="macro") + (1 - lam) * f1_score(
-                y2_true, y_pred, average="macro"
-            )
-
-    return None
+def get_file_path(opt, folder, extension):
+    return os.path.join(folder, clf_label(opt), opt.filename + extension)
 
 
-def adjust_learning_rate(optimizer, epoch, opt):
-    if opt.optimizer == "sgd":
-        lr_values = [0.01, 0.005, 0.001, 0.0005, 0.0001]
-        step = round(opt.epochs / 5)
+class MultiTaskClassifier(ModelTraining):
+    """Multi Task Classifier."""
 
-        idx = min(math.floor(epoch / step), len(lr_values))
-        learning_rate = lr_values[idx]
-
-        for param_group in optimizer.param_groups:
-            param_group["lr"] = learning_rate
-
-    return optimizer
-
-
-def data_loader(opt):
-    # Transforms
-    train_transforms = transforms.Compose(
-        [
-            transforms.Resize((224, 224)),
-            transforms.RandomHorizontalFlip(0.5),
-            transforms.RandomVerticalFlip(0.5),
-            transforms.RandomApply([transforms.RandomRotation(10)], 0.25),
-            transforms.ColorJitter(brightness=0.25, contrast=0.25, saturation=0.25),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        ]
-    )
-
-    val_transforms = transforms.Compose(
-        [
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        ]
-    )
-
-    # Dataset
-    if opt.select_clf < 3:
-        train_dataset = CoffeeLeavesDataset(
-            csv_file=opt.csv_file,
-            images_dir=opt.images_dir,
-            dataset="train",
-            fold=opt.fold,
-            select_dataset=opt.select_clf,
-            transforms=train_transforms,
-        )
-
-        val_dataset = CoffeeLeavesDataset(
-            csv_file=opt.csv_file,
-            images_dir=opt.images_dir,
-            dataset="val",
-            fold=opt.fold,
-            select_dataset=opt.select_clf,
-            transforms=val_transforms,
-        )
-
-        test_dataset = CoffeeLeavesDataset(
-            csv_file=opt.csv_file,
-            images_dir=opt.images_dir,
-            dataset="test",
-            fold=opt.fold,
-            select_dataset=opt.select_clf,
-            transforms=val_transforms,
-        )
-
-    else:
-        train_dataset = torchvision.datasets.ImageFolder(
-            root=opt.images_dir + "/train/", transform=train_transforms
-        )
-
-        val_dataset = torchvision.datasets.ImageFolder(
-            root=opt.images_dir + "/val/", transform=val_transforms
-        )
-
-        test_dataset = torchvision.datasets.ImageFolder(
-            root=opt.images_dir + "/test/", transform=val_transforms
-        )
-
-    # Loader
-    if opt.balanced_dataset:
-        train_loader = torch.utils.data.DataLoader(
-            dataset=train_dataset, batch_size=opt.batch_size, sampler=sampler(train_dataset, opt)
-        )
-    else:
-        train_loader = torch.utils.data.DataLoader(
-            dataset=train_dataset, batch_size=opt.batch_size, shuffle=True
-        )
-
-    val_loader = torch.utils.data.DataLoader(
-        dataset=val_dataset, batch_size=opt.batch_size, shuffle=False
-    )
-
-    test_loader = torch.utils.data.DataLoader(
-        dataset=test_dataset, batch_size=opt.batch_size, shuffle=False
-    )
-
-    return train_loader, val_loader, test_loader
-
-
-# -------------------------------------------------------------------------------------- #
-
-
-class MultiTaskClf:
-    def __init__(self, parser):
-        self.opt = parser.parse_args()
+    def __init__(self, options, images_dir: str):
+        self.opt = options
+        self.opt.num_classes = (5, 5)
+        self.opt.images_dir = images_dir
 
     def train(self, train_loader, model, criterion, optimizer, data_augmentation=None):
         # tell to pytorch that we are training the model
         model.train()
 
-        train_metrics = {"loss": 0.0, "dis_acc": 0.0, "sev_acc": 0.0}
+        metrics = {"loss": 0.0, "dis_acc": 0.0, "sev_acc": 0.0}
+        total = 0
 
-        for images, labels_dis, labels_sev in train_loader:
+        pbar = tqdm(train_loader)
+        for images, labels_dis, labels_sev in pbar:
             # Loading images on gpu
             if torch.cuda.is_available():
                 images, labels_dis, labels_sev = (
@@ -307,58 +104,62 @@ class MultiTaskClf:
 
             # Compute metrics
             # Loss
-            train_metrics["loss"] += (loss_dis + loss_sev).data.cpu() / 2 * len(images)
+            metrics["loss"] += (loss_dis + loss_sev).data.cpu() / 2 * len(images)
 
             # Biotic stress metrics
             pred = torch.max(outputs_dis.data, 1)[1]
+            y_pred = pred.cpu().int()
 
-            if torch.cuda.is_available():
-                if data_augmentation == "mixup":
-                    train_metrics["dis_acc"] += eval_metrics(
-                        "acc",
-                        pred.cpu().int(),
-                        labels_dis_a.cpu().int(),
-                        labels_dis_b.cpu().int(),
-                        lam,
-                    ) * len(images)
-                else:
-                    train_metrics["dis_acc"] += eval_metrics(
-                        "acc", pred.cpu().int(), labels_dis.cpu().int()
-                    ) * len(images)
+            if data_augmentation == "mixup":
+                metrics["dis_acc"] += accuracy_mixup(
+                    y_pred,
+                    labels_dis_a.cpu().int(),
+                    labels_dis_b.cpu().int(),
+                    lam,
+                ) * len(images)
+            else:
+                y_true = labels_dis.cpu().int()
+                metrics["dis_acc"] += accuracy_score(y_true, y_pred) * len(images)
 
             # Severity metrics
             pred = torch.max(outputs_sev.data, 1)[1]
+            y_pred = pred.cpu().int()
 
-            if torch.cuda.is_available():
-                if data_augmentation == "mixup":
-                    train_metrics["sev_acc"] += eval_metrics(
-                        "acc",
-                        pred.cpu().int(),
-                        labels_sev_a.cpu().int(),
-                        labels_sev_b.cpu().int(),
-                        lam,
-                    ) * len(images)
-                else:
-                    train_metrics["sev_acc"] += eval_metrics(
-                        "acc", pred.cpu().int(), labels_sev.cpu().int()
-                    ) * len(images)
-
-        for x in train_metrics:
-            if x != "loss":
-                train_metrics[x] = 100.0 * train_metrics[x] / len(train_loader.dataset)
+            if data_augmentation == "mixup":
+                metrics["sev_acc"] += accuracy_mixup(
+                    y_pred,
+                    labels_sev_a.cpu().int(),
+                    labels_sev_b.cpu().int(),
+                    lam,
+                ) * len(images)
             else:
-                train_metrics[x] = train_metrics[x] / len(train_loader.dataset)
+                y_true = labels_sev.cpu().int()
+                metrics["sev_acc"] += accuracy_score(y_true, y_pred) * len(images)
 
-        return train_metrics
+            # Update progress bar
+            total += len(images)
+            dis_acc = 100.0 * metrics["dis_acc"] / total
+            sev_acc = 100.0 * metrics["sev_acc"] / total
+            pbar.set_description("[Dis ACC: %.2f, Sev ACC: %.2f]" % (dis_acc, sev_acc))
+
+        for x in metrics:
+            if x != "loss":
+                metrics[x] = 100.0 * metrics[x] / len(train_loader.dataset)
+            else:
+                metrics[x] = metrics[x] / len(train_loader.dataset)
+            metrics[x] = float(metrics[x])
+
+        return metrics
 
     def validation(self, val_loader, model, criterion):
         # tell to pytorch that we are evaluating the model
         model.eval()
 
-        val_metrics = {"loss": 0.0, "dis_acc": 0.0, "sev_acc": 0.0, "mean_fs": 0.0}
-
+        metrics = {"loss": 0.0, "dis_acc": 0.0, "sev_acc": 0.0, "mean_fs": 0.0}
+        total = 0
         with torch.no_grad():
-            for images, labels_dis, labels_sev in val_loader:
+            pbar = tqdm(val_loader)
+            for images, labels_dis, labels_sev in pbar:
                 # Loading images on gpu
                 if torch.cuda.is_available():
                     images, labels_dis, labels_sev = (
@@ -376,41 +177,38 @@ class MultiTaskClf:
 
                 # Compute metrics
                 ## Loss
-                val_metrics["loss"] += (loss_dis + loss_sev).data.cpu() / 2 * len(images)
+                metrics["loss"] += (loss_dis + loss_sev).data.cpu() / 2 * len(images)
 
                 # Biotic stress metrics
                 pred = torch.max(outputs_dis.data, 1)[1]
+                y_pred = pred.cpu().int()
+                y_true = labels_dis.cpu().int()
 
-                if torch.cuda.is_available():
-                    val_metrics["dis_acc"] += eval_metrics(
-                        "acc", pred.cpu().int(), labels_dis.cpu().int()
-                    ) * len(images)
-                    val_metrics["mean_fs"] += (
-                        eval_metrics("fs", pred.cpu().int(), labels_dis.cpu().int())
-                        * len(images)
-                        * 0.5
-                    )
+                metrics["dis_acc"] += accuracy_score(y_true, y_pred) * len(images)
+                metrics["mean_fs"] += f1_score(y_true, y_pred, average="macro") * len(images) * 0.5
 
                 # Severity metrics
                 pred = torch.max(outputs_sev.data, 1)[1]
+                y_pred = pred.cpu().int()
+                y_true = labels_sev.cpu().int()
 
-                if torch.cuda.is_available():
-                    val_metrics["sev_acc"] += eval_metrics(
-                        "acc", pred.cpu().int(), labels_sev.cpu().int()
-                    ) * len(images)
-                    val_metrics["mean_fs"] += (
-                        eval_metrics("fs", pred.cpu().int(), labels_sev.cpu().int())
-                        * len(images)
-                        * 0.5
-                    )
+                metrics["sev_acc"] += accuracy_score(y_true, y_pred) * len(images)
+                metrics["mean_fs"] += f1_score(y_true, y_pred, average="macro") * len(images) * 0.5
 
-        for x in val_metrics:
+                # Update progress bar
+                total += len(images)
+                dis_acc = 100.0 * metrics["dis_acc"] / total
+                sev_acc = 100.0 * metrics["sev_acc"] / total
+                pbar.set_description("[Dis ACC: %.2f, Sev ACC: %.2f]" % (dis_acc, sev_acc))
+
+        for x in metrics:
             if x != "loss":
-                val_metrics[x] = 100.0 * val_metrics[x] / len(val_loader.dataset)
+                metrics[x] = 100.0 * metrics[x] / len(val_loader.dataset)
             else:
-                val_metrics[x] = val_metrics[x] / len(val_loader.dataset)
+                metrics[x] = metrics[x] / len(val_loader.dataset)
+            metrics[x] = float(metrics[x])
 
-        return val_metrics
+        return metrics
 
     def print_info(self, **kwargs):
         data_type = kwargs.get("data_type")
@@ -431,13 +229,13 @@ class MultiTaskClf:
         )
 
     def run_training(self):
-        print(clf_label[self.opt.select_clf] + " training: " + self.opt.filename)
+        print(clf_label(self.opt) + " training: " + self.opt.filename)
 
         # Dataset
         train_loader, val_loader, _ = data_loader(self.opt)
 
         # Model
-        model = cnn_model(self.opt.model, self.opt.pretrained, (5, 5))
+        model = cnn_model(self.opt.model, self.opt.pretrained, self.opt.num_classes)
 
         # Criterion
         criterion_train = (
@@ -490,7 +288,7 @@ class MultiTaskClf:
             )
 
             # Adjust learning rate
-            optimizer = adjust_learning_rate(optimizer, epoch, self.opt)
+            optimizer = self.adjust_learning_rate(optimizer, epoch, self.opt)
 
             # Recording metrics
             record["train_loss"].append(train_metrics["loss"])
@@ -507,19 +305,12 @@ class MultiTaskClf:
                 best_fs = curr_fs
 
                 # Saving model
-                torch.save(
-                    model,
-                    "net_weights/"
-                    + clf_label[self.opt.select_clf]
-                    + "/"
-                    + self.opt.filename
-                    + ".pth",
-                )
+                torch.save(model.state_dict(), get_file_path(self.opt, "net_weights", ".pth"))
                 print("model saved")
 
             # Saving log
-            with open(os.path.join("log", clf_label[self.opt.select_clf], self.opt.filename + ".pkl"), "wb") as fp:
-                pickle.dump(record, fp)
+            with open(get_file_path(self.opt, "log", ".json"), "w") as fp:
+                json.dump(record, fp, indent=4, sort_keys=True)
 
         # Plot
         # static_graph(np.array(record['train_dis_acc'])/100, np.array(record['val_dis_acc'])/100)
@@ -529,10 +320,9 @@ class MultiTaskClf:
         _, _, test_loader = data_loader(self.opt)
 
         # Loading model
-        model = torch.load(
-            "net_weights/" + clf_label[self.opt.select_clf] + "/" + self.opt.filename + ".pth"
-        )
-        model.cuda()
+        weights_path = get_file_path(self.opt, "net_weights", ".pth")
+        model = cnn_model(self.opt.model, self.opt.pretrained, self.opt.num_classes, weights_path)
+
         # tell to pytorch that we are evaluating the model
         model.eval()
 
@@ -573,28 +363,27 @@ class MultiTaskClf:
         write_results(
             y_true=y_true_dis,
             y_pred=y_pred_dis,
-            clf_label=clf_label[self.opt.select_clf],
+            clf_label=clf_label(self.opt),
             cm_target_names=["Healthy", "Leaf miner", "Rust", "Phoma", "Cercospora"],
             cm_suffix="_dis",
-            filename=self.opt.filename
+            filename=self.opt.filename,
         )
 
         # Severity
         write_results(
             y_true=y_true_sev,
             y_pred=y_pred_sev,
-            clf_label=clf_label[self.opt.select_clf],
+            clf_label=clf_label(self.opt),
             cm_target_names=["Healthy", "Very low", "Low", "High", "Very high"],
             cm_suffix="_sev",
-            filename=self.opt.filename
+            filename=self.opt.filename,
         )
 
         return y_true_dis, y_pred_dis, y_true_sev, y_pred_sev
 
     def get_n_params(self):
-        model = torch.load(
-            "net_weights/" + clf_label[self.opt.select_clf] + "/" + self.opt.filename + ".pth"
-        )
+        weights_path = get_file_path(self.opt, "net_weights", ".pth")
+        model = cnn_model(self.opt.model, self.opt.pretrained, (5, 5), weights_path)
         pp = 0
         for p in list(model.parameters()):
             nn = 1
@@ -604,22 +393,24 @@ class MultiTaskClf:
         return pp
 
 
-# ---------------------------------------------------------------------- #
+class SingleTaskClassifier(ModelTraining):
+    """Single task classifier."""
 
-
-class OneTaskClf:
-    def __init__(self, parser):
-        self.opt = parser.parse_args()
+    def __init__(self, options, images_dir):
+        self.opt = options
+        self.opt.num_classes = 5
+        self.opt.images_dir = images_dir
 
     def train(self, train_loader, model, criterion, optimizer, data_augmentation=None):
         # tell to pytorch that we are training the model
         model.train()
 
-        train_metrics = {"loss": 0.0, "acc": 0.0}
+        metrics = {"loss": 0.0, "acc": 0.0}
         correct = 0
         total = 0
 
-        for i, (images, labels) in enumerate(train_loader):
+        pbar = tqdm(train_loader)
+        for images, labels in pbar:
             # Loading images on gpu
             if torch.cuda.is_available():
                 images, labels = images.cuda(), labels.cuda()
@@ -657,51 +448,41 @@ class OneTaskClf:
 
             # Compute metrics
             ## Loss
-            train_metrics["loss"] += loss.data.cpu() * len(images)
+            metrics["loss"] += loss.data.cpu() * len(images)
 
             ## Accuracy
             pred = torch.max(outputs.data, 1)[1]
+            y_pred = pred.cpu().int()
 
-            if torch.cuda.is_available():
-                if data_augmentation == "mixup":
-                    correct += eval_metrics(
-                        "acc", pred.cpu().int(), labels_a.cpu().int(), labels_b.cpu().int(), lam
-                    ) * len(images)
-                else:
-                    correct += eval_metrics("acc", pred.cpu().int(), labels.cpu().int()) * len(
-                        images
-                    )
+            if data_augmentation == "mixup":
+                correct += accuracy_mixup(
+                    y_pred, labels_a.cpu().int(), labels_b.cpu().int(), lam
+                ) * len(images)
+            else:
+                correct += accuracy_score(labels.cpu().int(), y_pred) * len(images)
 
             total += labels.size(0)
+            metrics["acc"] = 100.0 * float(correct) / total
 
-            train_metrics["acc"] = 100.0 * float(correct) / total
+            # Update progress bar
+            pbar.set_description("[ACC: %.2f]" % metrics["acc"])
 
-            ## Completed percentage
-            p = (100.0 * (i + 1)) / len(train_loader)
+        metrics["loss"] = float(metrics["loss"] / len(train_loader.dataset))
 
-            sys.stdout.write(
-                "\r[%s][%.2f%%][ACC:%.2f]"
-                % ("=" * round(p / 2) + "-" * (50 - round(p / 2)), p, train_metrics["acc"])
-            )
-            sys.stdout.flush()
-
-        print("")
-
-        train_metrics["loss"] = train_metrics["loss"] / len(train_loader.dataset)
-
-        return train_metrics
+        return metrics
 
     def validation(self, val_loader, model, criterion):
         # tell to pytorch that we are evaluating the model
         model.eval()
 
-        val_metrics = {"loss": 0.0, "acc": 0.0, "fs": 0.0}
+        metrics = {"loss": 0.0, "acc": 0.0, "fs": 0.0}
         correct_acc = 0
         correct_fs = 0
         total = 0
 
         with torch.no_grad():
-            for i, (images, labels) in enumerate(val_loader):
+            pbar = tqdm(val_loader)
+            for images, labels in pbar:
                 # Loading images on gpu
                 if torch.cuda.is_available():
                     images, labels = images.cuda(), labels.cuda()
@@ -714,43 +495,27 @@ class OneTaskClf:
 
                 # Compute metrics
                 ## Loss
-                val_metrics["loss"] += loss.data.cpu() * len(images)
+                metrics["loss"] += loss.data.cpu() * len(images)
 
                 ## Accuracy
                 pred = torch.max(outputs.data, 1)[1]
+                y_pred = pred.cpu().int()
+                y_true = labels.cpu().int()
 
-                if torch.cuda.is_available():
-                    correct_acc += eval_metrics("acc", pred.cpu().int(), labels.cpu().int()) * len(
-                        images
-                    )
-                    correct_fs += eval_metrics("fs", pred.cpu().int(), labels.cpu().int()) * len(
-                        images
-                    )
+                correct_acc += accuracy_score(y_true, y_pred) * len(images)
+                correct_fs += f1_score(y_true, y_pred, average="macro") * len(images)
 
                 total += labels.size(0)
 
-                val_metrics["acc"] = 100.0 * float(correct_acc) / total
-                val_metrics["fs"] = 100.0 * float(correct_fs) / total
+                metrics["acc"] = 100.0 * float(correct_acc) / total
+                metrics["fs"] = 100.0 * float(correct_fs) / total
 
-                # Completed percentage
-                p = (100.0 * (i + 1)) / len(val_loader)
+                # Update progress bar
+                pbar.set_description("[ACC: %.2f]" % metrics["acc"])
 
-                sys.stdout.write(
-                    "\r[%s][%.2f%%][ACC:%.2f][FS:%.2f]"
-                    % (
-                        "=" * round(p / 2) + "-" * (50 - round(p / 2)),
-                        p,
-                        val_metrics["acc"],
-                        val_metrics["fs"],
-                    )
-                )
-                sys.stdout.flush()
+        metrics["loss"] = float(metrics["loss"] / len(val_loader.dataset))
 
-        print("")
-
-        val_metrics["loss"] = val_metrics["loss"] / len(val_loader.dataset)
-
-        return val_metrics
+        return metrics
 
     def print_info(self, **kwargs):
         data_type = kwargs.get("data_type")
@@ -764,13 +529,13 @@ class OneTaskClf:
         )
 
     def run_training(self):
-        print(clf_label[self.opt.select_clf] + " training: " + self.opt.filename)
+        print(clf_label(self.opt) + " training: " + self.opt.filename)
 
         # Data
         train_loader, val_loader, _ = data_loader(self.opt)
 
         # Model
-        model = cnn_model(self.opt.model, self.opt.pretrained, 5)
+        model = cnn_model(self.opt.model, self.opt.pretrained, self.opt.num_classes)
 
         # Criterion
         criterion_train = (
@@ -821,7 +586,7 @@ class OneTaskClf:
             )
 
             # Adjust learning rate
-            optimizer = adjust_learning_rate(optimizer, epoch, self.opt)
+            optimizer = self.adjust_learning_rate(optimizer, epoch, self.opt)
 
             # Recording metrics
             record["train_loss"].append(train_metrics["loss"])
@@ -832,23 +597,19 @@ class OneTaskClf:
 
             # Record best model
             curr_fs = val_metrics["fs"]
-            if (curr_fs > best_fs) and epoch >= 5:
+            if (curr_fs > best_fs) and epoch >= 3:
                 best_fs = curr_fs
 
                 # Saving model
                 torch.save(
-                    model,
-                    "net_weights/"
-                    + clf_label[self.opt.select_clf]
-                    + "/"
-                    + self.opt.filename
-                    + ".pth",
+                    model.state_dict(),
+                    get_file_path(self.opt, "net_weights", ".pth"),
                 )
                 print("model saved")
 
             # Saving log
-            with open(os.path.join("log", clf_label[self.opt.select_clf], self.opt.filename + ".pkl"), "wb") as fp:
-                pickle.dump(record, fp)
+            with open(get_file_path(self.opt, "log", ".json"), "w") as fp:
+                json.dump(record, fp, indent=4, sort_keys=True)
 
         # Plot
         # static_graph(np.array(record['train_acc'])/100, np.array(record['val_acc'])/100)
@@ -858,10 +619,10 @@ class OneTaskClf:
         _, _, test_loader = data_loader(self.opt)
 
         # Loading model
-        model = torch.load(
-            "net_weights/" + clf_label[self.opt.select_clf] + "/" + self.opt.filename + ".pth"
-        )
-        model.cuda()
+        weights_path = get_file_path(self.opt, "net_weights", ".pth")
+        model = cnn_model(self.opt.model, self.opt.pretrained, self.opt.num_classes, weights_path)
+
+        # tell to pytorch that we are evaluating the model
         model.eval()
 
         y_pred = np.empty(0)
@@ -882,15 +643,15 @@ class OneTaskClf:
                 y_true = np.concatenate((y_true, labels.data.cpu().numpy()))
 
         # Biotic stress labels
-        if self.opt.select_clf != 2:
-            labels = ["Healhty", "Leaf miner", "Rust", "Phoma", "Cercospora"]
-        else:
+        if self.opt.model_task == Tasks.SEVERITY:
             labels = ["Healthy", "Very low", "Low", "High", "Very high"]
+        else:
+            labels = ["Healhty", "Leaf miner", "Rust", "Phoma", "Cercospora"]
 
         write_results(
             y_true=y_true,
             y_pred=y_pred,
-            clf_label=clf_label[self.opt.select_clf],
+            clf_label=clf_label(self.opt),
             cm_target_names=labels,
             cm_suffix="",
             filename=self.opt.filename,
@@ -899,9 +660,8 @@ class OneTaskClf:
         return y_true, y_pred
 
     def get_n_params(self):
-        model = torch.load(
-            "net_weights/" + clf_label[self.opt.select_clf] + "/" + self.opt.filename + ".pth"
-        )
+        weights_path = get_file_path(self.opt, "net_weights", ".pth")
+        model = cnn_model(self.opt.model, self.opt.pretrained, 5, weights_path)
         pp = 0
         for p in list(model.parameters()):
             nn = 1

@@ -3,7 +3,6 @@ wide resnet for cifar in pytorch
 Reference:
 [1] S. Zagoruyko and N. Komodakis. Wide residual networks. In BMVC, 2016.
 """
-import torch
 import torch.nn as nn
 import math
 

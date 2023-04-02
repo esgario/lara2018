@@ -1,0 +1,15 @@
+[tool.black]
+line-length = 99
+include = '\.pyi?$'
+
+[tool.flakeheaven.plugins]
+pyflakes = ['+*', '-W291', '-W292', '-W293', '-E203', '-W503']
+
+[tool.flakeheaven]
+max-complexity = 10
+max-line-length = 99
+count = true
+format = "grouped"
+exclude = [
+    '*/*/__init__.py', 'venv', 'env', '*.md', '*.ipynb',
+]

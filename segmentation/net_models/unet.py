@@ -136,9 +136,9 @@ class UNetWithResnet50Encoder(nn.Module):
 
     def forward(self, x, with_output_feature_map=False):
         pre_pools = dict()
-        pre_pools[f"layer_0"] = x
+        pre_pools["layer_0"] = x
         x = self.input_block(x)
-        pre_pools[f"layer_1"] = x
+        pre_pools["layer_1"] = x
         x = self.input_pool(x)
 
         for i, block in enumerate(self.down_blocks, 2):

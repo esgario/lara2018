@@ -23,7 +23,7 @@ class Unit(nn.Module):
 
 
 class shallow(nn.Module):
-    def __init__(self, num_classes=(5, 5)):
+    def __init__(self, num_classes=(5, 5), **kwargs):
         super().__init__()
 
         # Convolutional-Batchnorm-Relu 1
