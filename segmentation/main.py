@@ -34,12 +34,19 @@ if __name__ == "__main__":
         default="standard",
     )
     parser.add_argument(
-        "--filename",
+        "--results_path",
         type=str,
-        help="Network weights output file name.",
-        default="default",
+        help="Path to the results folder.",
+        default="results",
+    )
+    parser.add_argument(
+        "--experiment_name",
+        type=str,
+        help="Name of the experiment.",
+        default="experiment",
     )
     parser.add_argument("--train", help="Run in training mode.", action="store_true")
+    parser.add_argument("--test", help="Run in test mode.", action="store_true")
 
     options = parser.parse_args()
 
@@ -47,5 +54,9 @@ if __name__ == "__main__":
 
     if options.train:
         Seg.run_training()
-    else:
+
+    elif options.test:
         Seg.run_test()
+
+    else:
+        raise ValueError("You must specify wheter you want to train or test a model.")
