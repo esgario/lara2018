@@ -1,22 +1,13 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu May  2 09:49:37 2019
-
-@author: esgario
-"""
-
 import os
+import itertools
+import numpy as np
+import matplotlib.pyplot as plt
 
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from bokeh.plotting import figure
 from bokeh.io import show
 from sklearn.metrics import confusion_matrix
-import numpy as np
-import matplotlib.pyplot as plt
 
-
-RESULTS_FOLDER = "results"
 
 
 def line_graph(train, val):
@@ -38,77 +29,31 @@ def line_graph(train, val):
     fig.savefig("result.png", dpi=200)
 
 
-# Generate an static plot from results
-def static_graph(train, val):
-    train = np.array(train)
-
-    val = np.array(val)
-
-    min_value = np.clip(min(min(train), min(val)) - 0.05, 0, 1)
-    max_value = np.clip(max(max(train), max(val)) + 0.05, 0, 1)
-
-    # Create figure
-    p = figure(
-        x_axis_label="Epoch",
-        y_axis_label="Accuracy",
-        width=750,
-        height=500,
-        y_range=(min_value, max_value),
-        title="PyTorch ConvNet results",
-    )
-
-    # Add train line
-    p.line(np.arange(len(train)), train, color="blue")
-
-    # val line
-    p.line(np.arange(len(val)), val, color="red")
-
-    show(p)
-
-
 def plot_confusion_matrix(
     cm,
     target_names,
     title="Confusion matrix",
-    output_name="confusion_matrix",
+    output_path="confusion_matrix.png",
     cmap=None,
     figsize=(5, 4),
 ):
     """
-    given a sklearn confusion matrix (cm), make a nice plot
+    Given a sklearn confusion matrix (cm), make a nice plot.
 
-    Arguments
-    ---------
-    cm:           confusion matrix from sklearn.metrics.confusion_matrix
+    Args
+        cm: Confusion matrix from sklearn.metrics.confusion_matrix
+        target_names: Given classification classes such as [0, 1, 2]
+            the class names, for example: ['high', 'medium', 'low']
+        title: The text to display at the top of the matrix.
+        output_path: The output path to save the figure.
+        cmap: The gradient of the values displayed from matplotlib.pyplot.cm
+            see http://matplotlib.org/examples/color/colormaps_reference.html
+            plt.get_cmap('jet') or plt.cm.Blues.
+        figsize: default = (5,4) the size of the figure.
 
-    target_names: given classification classes such as [0, 1, 2]
-                  the class names, for example: ['high', 'medium', 'low']
-
-    title:        the text to display at the top of the matrix
-
-    cmap:         the gradient of the values displayed from matplotlib.pyplot.cm
-                  see http://matplotlib.org/examples/color/colormaps_reference.html
-                  plt.get_cmap('jet') or plt.cm.Blues
-
-    normalize:    If False, plot the raw numbers
-                  If True, plot the proportions
-
-    Usage
-    -----
-    plot_confusion_matrix(cm           = cm,                  # confusion matrix created by
-                                                              # sklearn.metrics.confusion_matrix
-                          normalize    = True,                # show proportions
-                          target_names = y_labels_vals,       # list of names of the classes
-                          title        = best_estimator_name) # title of graph
-
-    Citiation
-    ---------
-    http://scikit-learn.org/stable/auto_examples/model_selection/plot_confusion_matrix.html
-
+    Returns
+        None
     """
-    import matplotlib.pyplot as plt
-    import itertools
-
     cm_orig = cm.copy()
     cm = cm.astype("float") / cm.sum(axis=1)[:, np.newaxis]
 
@@ -148,73 +93,63 @@ def plot_confusion_matrix(
             accuracy, misclass, balanced_accuracy
         )
     )
-    # plt.show()
 
-    fig.savefig(RESULTS_FOLDER + "/" + output_name + ".png", bbox_inches="tight", dpi=200)
+    fig.savefig(output_path, bbox_inches="tight", dpi=200)
     plt.close(fig)
 
 
-def multilabel_confusion_matrix(y_true, y_pred):
-    labels = [
-        0000,  # 0  - Saudável
-        1000,  # B  - Bicho mineiro
-        100,  # F  - Ferrugem
-        10,  # P  - Phoma
-        1,  # C  - Cercóspora
-        1100,  # BF - Bicho mineiro e Ferrugem
-        1010,  # BP - Bicho mineiro e Phoma
-        1001,  # BC - Bicho mineiro e Cercóspora
-        110,  # FP - Ferrugem e Phoma
-        101,  # FC - Ferrugem e Cercóspora
-        11,
-    ]  # PC - Phoma e Cercóspora
-
-    target_names = ["0", "B", "F", "P", "C", "BF", "BP", "BC", "FP", "FC", "PC"]
-
-    true_label = []
-    pred_label = []
-
-    for i in range(0, len(y_true)):
-        true_label.append(sum([y_true[i][j] * 10 ** (3 - j) for j in range(0, 4)]))
-        pred_label.append(sum([y_pred[i][j] * 10 ** (3 - j) for j in range(0, 4)]))
-
-    cm = confusion_matrix(true_label, pred_label, labels)
-    print(cm)
-    plot_confusion_matrix(
-        cm=cm, target_names=target_names, title=" ", normalize=True, figsize=(14, 11)
-    )
-
-
-def write_results(y_true, y_pred, clf_label, cm_target_names, cm_suffix, filename):
+def write_results(y_true, y_pred, cm_target_names, results_path, task_name, experiment_name):
+    """Write experiment results."""
     # calculate metrics
     acc = accuracy_score(y_true, y_pred)
     pr = precision_score(y_true, y_pred, average="macro")
     re = recall_score(y_true, y_pred, average="macro")
     fs = f1_score(y_true, y_pred, average="macro")
 
-    results_folder = os.path.join(RESULTS_FOLDER, clf_label)
-    if not os.path.exists(results_folder):
-        os.makedirs(results_folder)
+    results_folder = os.path.join(results_path, experiment_name)
 
-    print("Saving results to %s" % results_folder)
+    print(f"Saving results to {results_folder}")
 
-    file_path = os.path.join(results_folder, filename + ".csv")
+    file_path = os.path.join(results_folder, "metrics.csv")
 
     # check if file exists
     if not os.path.isfile(file_path):
         # create file and write header
-        with open(file_path, "w") as fp:
-            fp.write("experiment,acc,prec,rec,fs\n")
+        with open(file_path, "w", encoding="UTF-8") as fp:
+            fp.write("task,acc,prec,rec,fs\n")
 
-    with open(file_path, "a") as fp:
-        fp.write("%s,%.2f,%.2f,%.2f,%.2f\n" % (filename+cm_suffix, acc * 100, pr * 100, re * 100, fs * 100))
+    with open(file_path, "a", encoding="UTF-8") as fp:
+        fp.write("%s,%.2f,%.2f,%.2f,%.2f\n" % (task_name, acc * 100, pr * 100, re * 100, fs * 100))
 
     # Confusion matrix
-    cm = confusion_matrix(y_true, y_pred, labels=list(range(0, 5)))
+    cmatrix = confusion_matrix(y_true, y_pred, labels=list(range(0, 5)))
 
     plot_confusion_matrix(
-        cm=cm,
+        cm=cmatrix,
         target_names=cm_target_names,
         title=" ",
-        output_name=clf_label + "/" + filename + cm_suffix,
+        output_path=results_folder + f"/confusion_matrix_{task_name}.png",
     )
+
+
+def create_results_folder(results_path, experiment_name):
+    """
+    Creates a folder to store the results of the experiment.
+
+    Args:
+        results_path (str): Path to the results folder.
+        experiment_name (str): Name of the experiment.
+
+    Returns:
+        str: Path to the results folder.
+    """
+    results_folder = os.path.join(results_path, experiment_name)
+
+    if not os.path.exists(results_folder):
+        os.makedirs(results_folder)
+
+    return results_folder
+
+
+def get_file_path(opt, filename):
+    return os.path.join(opt.results_path, opt.experiment_name, filename)

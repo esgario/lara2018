@@ -15,24 +15,20 @@ from deep_training import ModelTraining
 
 from utils.enums import Tasks
 from utils.augmentation import between_class, mixup_data, mixup_criterion
-from utils.utils import write_results
+from utils.utils import write_results, create_results_folder, get_file_path
 from utils.metrics import accuracy_mixup, accuracy_score, f1_score
 
 
 def clf_label(opt):
     if opt.dataset == "leaf":
         if opt.model_task == Tasks.MULTITASK:
-            return "leaf_multitask"
+            return "multitask"
         elif opt.model_task == Tasks.BIOTIC_STRESS:
-            return "leaf_disease"
+            return "biotic_stress"
         else:
-            return "leaf_severity"
+            return "severity"
     else:
         return "symptom"
-
-
-def get_file_path(opt, folder, extension):
-    return os.path.join(folder, clf_label(opt), opt.filename + extension)
 
 
 class MultiTaskClassifier(ModelTraining):
@@ -42,12 +38,13 @@ class MultiTaskClassifier(ModelTraining):
         self.opt = options
         self.opt.num_classes = (5, 5)
         self.opt.images_dir = images_dir
+        create_results_folder(self.opt.results_path, self.opt.experiment_name)
 
     def train(self, train_loader, model, criterion, optimizer, data_augmentation=None):
         # tell to pytorch that we are training the model
         model.train()
 
-        metrics = {"loss": 0.0, "dis_acc": 0.0, "sev_acc": 0.0}
+        metrics = {"loss": 0.0, "biotic_stress_acc": 0.0, "severity_acc": 0.0}
         total = 0
 
         pbar = tqdm(train_loader)
@@ -111,7 +108,7 @@ class MultiTaskClassifier(ModelTraining):
             y_pred = pred.cpu().int()
 
             if data_augmentation == "mixup":
-                metrics["dis_acc"] += accuracy_mixup(
+                metrics["biotic_stress_acc"] += accuracy_mixup(
                     y_pred,
                     labels_dis_a.cpu().int(),
                     labels_dis_b.cpu().int(),
@@ -119,14 +116,14 @@ class MultiTaskClassifier(ModelTraining):
                 ) * len(images)
             else:
                 y_true = labels_dis.cpu().int()
-                metrics["dis_acc"] += accuracy_score(y_true, y_pred) * len(images)
+                metrics["biotic_stress_acc"] += accuracy_score(y_true, y_pred) * len(images)
 
             # Severity metrics
             pred = torch.max(outputs_sev.data, 1)[1]
             y_pred = pred.cpu().int()
 
             if data_augmentation == "mixup":
-                metrics["sev_acc"] += accuracy_mixup(
+                metrics["severity_acc"] += accuracy_mixup(
                     y_pred,
                     labels_sev_a.cpu().int(),
                     labels_sev_b.cpu().int(),
@@ -134,12 +131,12 @@ class MultiTaskClassifier(ModelTraining):
                 ) * len(images)
             else:
                 y_true = labels_sev.cpu().int()
-                metrics["sev_acc"] += accuracy_score(y_true, y_pred) * len(images)
+                metrics["severity_acc"] += accuracy_score(y_true, y_pred) * len(images)
 
             # Update progress bar
             total += len(images)
-            dis_acc = 100.0 * metrics["dis_acc"] / total
-            sev_acc = 100.0 * metrics["sev_acc"] / total
+            dis_acc = 100.0 * metrics["biotic_stress_acc"] / total
+            sev_acc = 100.0 * metrics["severity_acc"] / total
             pbar.set_description("[Dis ACC: %.2f, Sev ACC: %.2f]" % (dis_acc, sev_acc))
 
         for x in metrics:
@@ -155,7 +152,7 @@ class MultiTaskClassifier(ModelTraining):
         # tell to pytorch that we are evaluating the model
         model.eval()
 
-        metrics = {"loss": 0.0, "dis_acc": 0.0, "sev_acc": 0.0, "mean_fs": 0.0}
+        metrics = {"loss": 0.0, "biotic_stress_acc": 0.0, "severity_acc": 0.0, "mean_fs": 0.0}
         total = 0
         with torch.no_grad():
             pbar = tqdm(val_loader)
@@ -184,7 +181,7 @@ class MultiTaskClassifier(ModelTraining):
                 y_pred = pred.cpu().int()
                 y_true = labels_dis.cpu().int()
 
-                metrics["dis_acc"] += accuracy_score(y_true, y_pred) * len(images)
+                metrics["biotic_stress_acc"] += accuracy_score(y_true, y_pred) * len(images)
                 metrics["mean_fs"] += f1_score(y_true, y_pred, average="macro") * len(images) * 0.5
 
                 # Severity metrics
@@ -192,13 +189,13 @@ class MultiTaskClassifier(ModelTraining):
                 y_pred = pred.cpu().int()
                 y_true = labels_sev.cpu().int()
 
-                metrics["sev_acc"] += accuracy_score(y_true, y_pred) * len(images)
+                metrics["severity_acc"] += accuracy_score(y_true, y_pred) * len(images)
                 metrics["mean_fs"] += f1_score(y_true, y_pred, average="macro") * len(images) * 0.5
 
                 # Update progress bar
                 total += len(images)
-                dis_acc = 100.0 * metrics["dis_acc"] / total
-                sev_acc = 100.0 * metrics["sev_acc"] / total
+                dis_acc = 100.0 * metrics["biotic_stress_acc"] / total
+                sev_acc = 100.0 * metrics["severity_acc"] / total
                 pbar.set_description("[Dis ACC: %.2f, Sev ACC: %.2f]" % (dis_acc, sev_acc))
 
         for x in metrics:
@@ -223,13 +220,13 @@ class MultiTaskClassifier(ModelTraining):
                 epochs,
                 data_type,
                 metrics["loss"],
-                metrics["dis_acc"],
-                metrics["sev_acc"],
+                metrics["biotic_stress_acc"],
+                metrics["severity_acc"],
             )
         )
 
     def run_training(self):
-        print(clf_label(self.opt) + " training: " + self.opt.filename)
+        print(clf_label(self.opt) + " - training: " + self.opt.experiment_name)
 
         # Dataset
         train_loader, val_loader, _ = data_loader(self.opt)
@@ -265,10 +262,10 @@ class MultiTaskClassifier(ModelTraining):
         record["epochs"] = self.opt.epochs
         record["train_loss"] = []
         record["val_loss"] = []
-        record["train_dis_acc"] = []
-        record["val_dis_acc"] = []
-        record["train_sev_acc"] = []
-        record["val_sev_acc"] = []
+        record["train_biotic_stress_acc"] = []
+        record["val_biotic_stress_acc"] = []
+        record["train_severity_acc"] = []
+        record["val_severity_acc"] = []
 
         best_fs = 0.0
 
@@ -292,12 +289,12 @@ class MultiTaskClassifier(ModelTraining):
 
             # Recording metrics
             record["train_loss"].append(train_metrics["loss"])
-            record["train_dis_acc"].append(train_metrics["dis_acc"])
-            record["train_sev_acc"].append(train_metrics["sev_acc"])
+            record["train_biotic_stress_acc"].append(train_metrics["biotic_stress_acc"])
+            record["train_severity_acc"].append(train_metrics["severity_acc"])
 
             record["val_loss"].append(val_metrics["loss"])
-            record["val_dis_acc"].append(val_metrics["dis_acc"])
-            record["val_sev_acc"].append(val_metrics["sev_acc"])
+            record["val_biotic_stress_acc"].append(val_metrics["biotic_stress_acc"])
+            record["val_severity_acc"].append(val_metrics["severity_acc"])
 
             # Record best model
             curr_fs = val_metrics["mean_fs"]
@@ -305,22 +302,19 @@ class MultiTaskClassifier(ModelTraining):
                 best_fs = curr_fs
 
                 # Saving model
-                torch.save(model.state_dict(), get_file_path(self.opt, "net_weights", ".pth"))
+                torch.save(model.state_dict(), get_file_path(self.opt, "net_weights.pth"))
                 print("model saved")
 
             # Saving log
-            with open(get_file_path(self.opt, "log", ".json"), "w") as fp:
+            with open(get_file_path(self.opt, "logs.json"), "w") as fp:
                 json.dump(record, fp, indent=4, sort_keys=True)
-
-        # Plot
-        # static_graph(np.array(record['train_dis_acc'])/100, np.array(record['val_dis_acc'])/100)
 
     def run_test(self):
         # Dataset
         _, _, test_loader = data_loader(self.opt)
 
         # Loading model
-        weights_path = get_file_path(self.opt, "net_weights", ".pth")
+        weights_path = get_file_path(self.opt, "net_weights.pth")
         model = cnn_model(self.opt.model, self.opt.pretrained, self.opt.num_classes, weights_path)
 
         # tell to pytorch that we are evaluating the model
@@ -363,26 +357,26 @@ class MultiTaskClassifier(ModelTraining):
         write_results(
             y_true=y_true_dis,
             y_pred=y_pred_dis,
-            clf_label=clf_label(self.opt),
             cm_target_names=["Healthy", "Leaf miner", "Rust", "Phoma", "Cercospora"],
-            cm_suffix="_dis",
-            filename=self.opt.filename,
+            results_path=self.opt.results_path,
+            task_name="biotic_stress",
+            experiment_name=self.opt.experiment_name,
         )
 
         # Severity
         write_results(
             y_true=y_true_sev,
             y_pred=y_pred_sev,
-            clf_label=clf_label(self.opt),
             cm_target_names=["Healthy", "Very low", "Low", "High", "Very high"],
-            cm_suffix="_sev",
-            filename=self.opt.filename,
+            results_path=self.opt.results_path,
+            task_name="severity",
+            experiment_name=self.opt.experiment_name,
         )
 
         return y_true_dis, y_pred_dis, y_true_sev, y_pred_sev
 
     def get_n_params(self):
-        weights_path = get_file_path(self.opt, "net_weights", ".pth")
+        weights_path = get_file_path(self.opt, "net_weights.pth")
         model = cnn_model(self.opt.model, self.opt.pretrained, (5, 5), weights_path)
         pp = 0
         for p in list(model.parameters()):
@@ -400,6 +394,7 @@ class SingleTaskClassifier(ModelTraining):
         self.opt = options
         self.opt.num_classes = 5
         self.opt.images_dir = images_dir
+        create_results_folder(self.opt.results_path, self.opt.experiment_name)
 
     def train(self, train_loader, model, criterion, optimizer, data_augmentation=None):
         # tell to pytorch that we are training the model
@@ -529,7 +524,7 @@ class SingleTaskClassifier(ModelTraining):
         )
 
     def run_training(self):
-        print(clf_label(self.opt) + " training: " + self.opt.filename)
+        print(clf_label(self.opt) + " - training: " + self.opt.experiment_name)
 
         # Data
         train_loader, val_loader, _ = data_loader(self.opt)
@@ -603,23 +598,20 @@ class SingleTaskClassifier(ModelTraining):
                 # Saving model
                 torch.save(
                     model.state_dict(),
-                    get_file_path(self.opt, "net_weights", ".pth"),
+                    get_file_path(self.opt, "net_weights.pth"),
                 )
                 print("model saved")
 
             # Saving log
-            with open(get_file_path(self.opt, "log", ".json"), "w") as fp:
+            with open(get_file_path(self.opt, "logs.json"), "w") as fp:
                 json.dump(record, fp, indent=4, sort_keys=True)
-
-        # Plot
-        # static_graph(np.array(record['train_acc'])/100, np.array(record['val_acc'])/100)
 
     def run_test(self):
         # Dataset
         _, _, test_loader = data_loader(self.opt)
 
         # Loading model
-        weights_path = get_file_path(self.opt, "net_weights", ".pth")
+        weights_path = get_file_path(self.opt, "net_weights.pth")
         model = cnn_model(self.opt.model, self.opt.pretrained, self.opt.num_classes, weights_path)
 
         # tell to pytorch that we are evaluating the model
@@ -645,22 +637,24 @@ class SingleTaskClassifier(ModelTraining):
         # Biotic stress labels
         if self.opt.model_task == Tasks.SEVERITY:
             labels = ["Healthy", "Very low", "Low", "High", "Very high"]
+            task_name = "severity"
         else:
             labels = ["Healhty", "Leaf miner", "Rust", "Phoma", "Cercospora"]
+            task_name = "biotic_stress"
 
         write_results(
             y_true=y_true,
             y_pred=y_pred,
-            clf_label=clf_label(self.opt),
             cm_target_names=labels,
-            cm_suffix="",
-            filename=self.opt.filename,
+            results_path=self.opt.results_path,
+            task_name=task_name,
+            experiment_name=self.opt.experiment_name,
         )
 
         return y_true, y_pred
 
     def get_n_params(self):
-        weights_path = get_file_path(self.opt, "net_weights", ".pth")
+        weights_path = get_file_path(self.opt, "net_weights.pth")
         model = cnn_model(self.opt.model, self.opt.pretrained, 5, weights_path)
         pp = 0
         for p in list(model.parameters()):

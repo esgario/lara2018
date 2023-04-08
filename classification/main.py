@@ -56,10 +56,16 @@ if __name__ == "__main__":
         default=1,
     )
     parser.add_argument(
-        "--filename",
+        "--experiment_name",
         type=str,
-        help="Network weights output file name.",
-        default="default",
+        help="Name of the experiment.",
+        default="experiment",
+    )
+    parser.add_argument(
+        "--results_path",
+        type=str,
+        help="Path to the results folder.",
+        default="results",
     )
     parser.add_argument("--train", help="Run in training mode.", action="store_true")
     parser.add_argument("--test", help="Run in test mode.", action="store_true")
@@ -108,8 +114,11 @@ if __name__ == "__main__":
     if options.train:
         Clf.run_training()
 
-    if options.test:
+    elif options.test:
         if options.model_task == Tasks.MULTITASK:
             y_true_dis, y_pred_dis, y_true_sev, y_pred_sev = Clf.run_test()
         else:
             y_true, y_pred = Clf.run_test()
+
+    else:
+        raise ValueError("You must specify wheter you want to train or test a model.")

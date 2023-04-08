@@ -4,10 +4,10 @@
 
 ```
 # Training and Validation
-python main.py --train --batch_size 24 --optimizer sgd --data_augmentation standard --model resnet50 --filename example
+python main.py --train --batch_size 24 --optimizer sgd --data_augmentation standard --model resnet50 --experiment_name example
 
 # Testing
-python main.py --test --batch_size 24 --model resnet50 --filename example
+python main.py --test --batch_size 24 --model resnet50 --experiment_name example
 ```
 
 | Argument           | Type       | Description       | Options       | Default     | 
@@ -16,7 +16,8 @@ python main.py --test --batch_size 24 --model resnet50 --filename example
 |--test              | bool       | Run in test mode. | | False |
 |--dataset           | str        | Select the dataset to use. | leaf and symptom	| leaf |
 |--model_task        | int        | Select the model task according to the dataset. Leaf dataset: (0) biotic stress only, (1) severity only, (2) multitask. Symptom dataset: (0) biotic stress only. | 0, 1 or 2 | 2 |
-|--filename          | str        | Network weights output file name. | | default|
+|--results_path      | str        | Path to the results folder. | | results |
+|--experiment_name   | str        | Name of the experiment. | | experiment |
 |--optimizer         | str        | Select the desired optimization technique. | sgd or adam | sgd |
 |--batch_size        | int        | Set images batch size. | | 24 |
 |--weight_decay      | float      | Set L2 parameter norm penalty. | | 5e-4 |

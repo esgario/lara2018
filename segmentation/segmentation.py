@@ -6,158 +6,22 @@ import torch
 import torch.nn as nn
 
 import utils.augmentations as aug
-from utils.customdatasets import SegmentationLoader
-from utils.metric import scores
-from net_models import PSPNet, UNetWithResnet50Encoder
+from utils.metric import scores, eval_metric
+from utils.plots import scatter_plot
+from utils.utils import get_file_path, create_results_folder
+
+from architectures import build_network, load_model
+from deep_training import ModelTraining
+from loaders import data_loader
 
 import pickle
-import math
 import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
-
-## Declare models
-models = {
-    "pspsqueezenet": lambda: PSPNet(
-        sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend="squeezenet"
-    ),
-    "pspdensenet": lambda: PSPNet(
-        sizes=(1, 2, 3, 6), psp_size=1024, deep_features_size=512, backend="densenet"
-    ),
-    "pspresnet18": lambda: PSPNet(
-        sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend="resnet18"
-    ),
-    "pspresnet34": lambda: PSPNet(
-        sizes=(1, 2, 3, 6), psp_size=512, deep_features_size=256, backend="resnet34"
-    ),
-    "pspresnet50": lambda: PSPNet(
-        sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend="resnet50"
-    ),
-    "pspresnet101": lambda: PSPNet(
-        sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend="resnet101"
-    ),
-    "pspresnet152": lambda: PSPNet(
-        sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend="resnet152"
-    ),
-    "unetresnet50": lambda: UNetWithResnet50Encoder(n_classes=3),
-}
 
 
-# Building network
-def build_network(snapshot, backend):
-    epoch = 0
-    backend = backend.lower()
-
-    # Instantiate network model
-    net = models[backend]()
-
-    # Parallel training
-    if torch.cuda.device_count() > 1:
-        net = nn.DataParallel(net)
-
-    # Load a pretrained network
-    if snapshot is not None:
-        _, epoch = os.path.basename(snapshot).split("_")
-        epoch = int(epoch)
-        net.load_state_dict(torch.load(snapshot))
-
-    # Sending model to GPU
-    if torch.cuda.is_available():
-        net = net.cuda()
-
-    return net, epoch
-
-
-def adjust_learning_rate(optimizer, epoch, opt):
-    if opt.optimizer == "sgd":
-        lr_values = [0.01, 0.005, 0.001, 0.0005, 0.0001]
-        step = round(opt.epochs / 5)
-
-        idx = min(math.floor(epoch / step), len(lr_values))
-        learning_rate = lr_values[idx]
-
-        for param_group in optimizer.param_groups:
-            param_group["lr"] = learning_rate
-
-    return optimizer
-
-
-def data_loader(split="train", batch_size=4):
-    # Augmentations
-    if split == "train":
-        augs = aug.Compose(
-            [
-                aug.RandomRotate(10),
-                aug.RandomHorizontallyFlip(0.5),
-                aug.RandomVerticallyFlip(0.5),
-                aug.AdjustContrast(0.25),
-                aug.AdjustBrightness(0.25),
-                aug.AdjustSaturation(0.25),
-            ]
-        )
-        shuffle = True
-    else:
-        augs = None
-        shuffle = False
-
-    dataset = SegmentationLoader(root="dataset/", augmentations=augs, split=split)
-    loader = torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle)
-
-    class_weight = torch.tensor([1.0, 1.0, 2.0])
-    if torch.cuda.is_available():
-        class_weight = class_weight.cuda()
-
-    if split != "test":
-        return loader, class_weight, len(dataset)
-    else:
-        return loader, dataset
-
-
-def eval_metric(label_trues, label_preds, n_class):
-    label_preds = torch.max(label_preds, 1)[1]
-
-    if len(label_trues.shape) > 2:
-        acc, miou = [], []
-        for i in range(label_trues.shape[0]):
-            score = scores(label_trues[i].cpu(), label_preds[i].cpu(), n_class)[0]
-            miou.append(score["mean iou"])
-            acc.append(score["overall acc"])
-        return np.mean(miou), np.mean(acc)
-    else:
-        score = scores(label_trues.cpu(), label_preds.cpu(), n_class)[0]
-        return score["mean iou"], score["overall acc"]
-
-
-def scatterPlot(x_true, x_pred, output_name, figsize=(6, 4.5), marker_color="g", curve_color="k"):
-    reg = LinearRegression()
-    reg.fit(x_true[:, None], x_pred[:, None])
-    x_true_line = np.linspace(x_true.min(), x_true.max())
-    x_pred_line = reg.predict(x_true_line[:, None])
-    r2 = reg.score(x_true[:, None], x_pred[:, None])
-
-    fig = plt.figure(figsize=figsize)
-    # ax = fig.gca()
-
-    title = "R²=:%.4f" % r2
-
-    plt.plot(x_true_line, x_pred_line, curve_color, alpha=0.7)
-    plt.plot(x_true, x_pred, "o%s" % marker_color, markersize=6, alpha=0.7)
-    plt.grid()
-    plt.xlabel("True severity")
-    plt.ylabel("Predicted severity")
-    plt.xlim(-0.01, 0.23)
-    plt.ylim(-0.01, 0.24)
-    plt.title(title)
-    plt.show()
-    fig.savefig("results/" + output_name + ".png", bbox_inches="tight", dpi=200)
-    plt.close(fig)
-
-
-# -------------------------------------------------------------------------------------- #
-
-
-class SemanticSegmentation:
+class SemanticSegmentation(ModelTraining):
     def __init__(self, parser):
         self.opt = parser.parse_args()
+        create_results_folder(self.opt.results_path, self.opt.experiment_name)
 
     def train(
         self,
@@ -282,7 +146,6 @@ class SemanticSegmentation:
 
         # Model
         model, starting_epoch = build_network(self.opt.snapshot, self.opt.extractor)
-        os.makedirs(os.path.abspath("net_weights"), exist_ok=True)
 
         # Criterion
         seg_criterion = nn.NLLLoss(weight=class_weights)
@@ -341,7 +204,7 @@ class SemanticSegmentation:
             )
 
             # Adjust learning rate
-            optimizer = adjust_learning_rate(optimizer, epoch, self.opt)
+            optimizer = self.adjust_learning_rate(optimizer, epoch, self.opt)
 
             # Recording metrics
             record["train_loss"].append(train_metrics["loss"])
@@ -358,27 +221,21 @@ class SemanticSegmentation:
                 best_loss = curr_loss
 
                 # Saving model
-                torch.save(model, "net_weights/" + self.opt.filename + ".pth")
+                torch.save(model.state_dict(), get_file_path(self.opt, "net_weights.pth"))
 
                 print("model saved")
 
             # Saving log
-            fp = open("log/" + self.opt.filename + ".pkl", "wb")
-            pickle.dump(record, fp)
-            fp.close()
-
-        # Plot
-        # static_graph(np.array(record['train_dis_acc'])/100, np.array(record['val_dis_acc'])/100)
+            with open(get_file_path(self.opt, "logs.pkl"), "wb") as fp:
+                pickle.dump(record, fp)
 
     def run_test(self):
-        os.makedirs(os.path.abspath("results"), exist_ok=True)
-
         # Dataset
         test_loader, test_dataset = data_loader("test", self.opt.batch_size)
 
         # Loading model
-        model = torch.load("net_weights/" + self.opt.filename + ".pth")
-        model.cuda()
+        weights_path = get_file_path(self.opt, "net_weights.pth")
+        model = load_model(self.opt.extractor, weights_path)
 
         # tell to pytorch that we are evaluating the model
         model.eval()
@@ -387,10 +244,10 @@ class SemanticSegmentation:
         severity = {"true": np.array([]), "pred": np.array([])}
 
         with torch.no_grad():
-            for imgs, labels, cls in test_loader:
+            for imgs, labels, y_cls in tqdm(test_loader):
                 # Loading images on gpu
                 if torch.cuda.is_available():
-                    imgs, labels, cls = imgs.cuda(), labels.cuda(), cls.cuda()
+                    imgs, labels, y_cls = imgs.cuda(), labels.cuda(), y_cls.cuda()
 
                 # pass images through the network
                 out, out_cls = model(imgs)
@@ -433,16 +290,18 @@ class SemanticSegmentation:
         miou = np.mean(test_metrics["miou"])
         acc = np.mean(test_metrics["acc"])
 
-        f = open("results/" + self.opt.filename + ".csv", "w")
-        f.write("miou,acc\n%.2f,%.2f\n" % (miou * 100, acc * 100))
-        f.close()
+        with open(get_file_path(self.opt, "metrics.csv"), "w") as fp:
+            content = "miou,acc\n%.2f,%.2f\n" % (miou * 100, acc * 100)
+            print(content)
+            fp.write(content)
 
-        print("miou,acc\n%.2f,%.2f\n" % (miou * 100, acc * 100))
-
-        scatterPlot(severity["true"], severity["pred"], self.opt.filename)
+        scatter_plot(
+            severity["true"], severity["pred"], get_file_path(self.opt, "r2_scatterplot.png")
+        )
 
     def get_n_params(self):
-        model = torch.load("net_weights/" + self.opt.filename + ".pth")
+        weights_path = get_file_path(self.opt, "net_weights.pth")
+        model = load_model(self.opt.extractor, weights_path)
         pp = 0
         for p in list(model.parameters()):
             nn = 1

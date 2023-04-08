@@ -36,3 +36,18 @@ def scores(label_trues, label_preds, n_class):
         },
         cls_iu,
     )
+
+
+def eval_metric(label_trues, label_preds, n_class):
+    label_preds = torch.max(label_preds, 1)[1]
+
+    if len(label_trues.shape) > 2:
+        acc, miou = [], []
+        for i in range(label_trues.shape[0]):
+            score = scores(label_trues[i].cpu(), label_preds[i].cpu(), n_class)[0]
+            miou.append(score["mean iou"])
+            acc.append(score["overall acc"])
+        return np.mean(miou), np.mean(acc)
+    else:
+        score = scores(label_trues.cpu(), label_preds.cpu(), n_class)[0]
+        return score["mean iou"], score["overall acc"]
