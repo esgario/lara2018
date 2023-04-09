@@ -4,10 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from bokeh.plotting import figure
-from bokeh.io import show
 from sklearn.metrics import confusion_matrix
-
 
 
 def line_graph(train, val):
@@ -98,15 +95,13 @@ def plot_confusion_matrix(
     plt.close(fig)
 
 
-def write_results(y_true, y_pred, cm_target_names, results_path, task_name, experiment_name):
+def write_results(y_true, y_pred, cm_target_names, task_name, results_folder):
     """Write experiment results."""
     # calculate metrics
     acc = accuracy_score(y_true, y_pred)
     pr = precision_score(y_true, y_pred, average="macro")
     re = recall_score(y_true, y_pred, average="macro")
     fs = f1_score(y_true, y_pred, average="macro")
-
-    results_folder = os.path.join(results_path, experiment_name)
 
     print(f"Saving results to {results_folder}")
 
