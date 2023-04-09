@@ -25,7 +25,7 @@ class CoffeeLeavesDataset(Dataset):
             images_dir (string): Directory with all the images.
             dataset (string) : Select the desired dataset - 'train', 'val' or 'test'
             fold (int{1,5}) : The data is changed based on the selected fold
-            model_task (string) : Select the desired task - 'multitask', 'biotic_stress' or 'severity'
+            model_task (Tasks) : Select the model task according to the dataset.
             transforms : Image transformations
         """
         self.fold = fold

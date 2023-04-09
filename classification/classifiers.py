@@ -1,3 +1,4 @@
+import os
 import json
 
 import numpy as np
@@ -7,13 +8,13 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.clip_grad import clip_grad_norm_
 
-from loaders import data_loader
+from loaders import images_loader
 from architectures import cnn_model
 from deep_training import ModelTraining
 
 from utils.enums import Tasks
 from utils.augmentation import between_class, mixup_data, mixup_criterion
-from utils.utils import write_results, create_results_folder, get_file_path
+from utils.utils import create_results_folder
 from utils.metrics import accuracy_mixup, accuracy_score, f1_score
 
 
@@ -32,20 +33,55 @@ def clf_label(opt):
 class MultiTaskClassifier(ModelTraining):
     """Multi Task Classifier."""
 
-    def __init__(self, options, images_dir: str):
-        self.opt = options
-        self.opt.num_classes = (5, 5)
-        self.opt.images_dir = images_dir
-        create_results_folder(self.opt.results_path, self.opt.experiment_name)
+    def __init__(
+        self,
+        images_dir,
+        csv_file,
+        fold,
+        num_classes,
+        model_task,
+        balanced_dataset=False,
+        batch_size=24,
+        epochs=80,
+        model="resnet50",
+        pretrained=True,
+        optimizer="sgd",
+        weight_decay=5e-4,
+        data_augmentation="standard",
+        results_path="results",
+        experiment_name="experiment",
+    ):
+        # Dataset parameters
+        self.images_dir = images_dir
+        self.csv_file = csv_file
+        self.fold = fold
+        self.num_classes = num_classes
+        self.model_task = model_task
+        self.balanced_dataset = balanced_dataset
 
-    def train(self, train_loader, model, criterion, optimizer, data_augmentation=None):
+        # Training parameters
+        self.batch_size = batch_size
+        self.epochs = epochs
+
+        # Model parameters
+        self.optimizer = optimizer
+        self.weight_decay = weight_decay
+        self.model = model
+        self.pretrained = pretrained
+        self.data_augmentation = data_augmentation
+
+        # Results parameters
+        self.experiment_name = experiment_name
+        self.results_folder = create_results_folder(results_path, experiment_name)
+
+    def train(self, loader, model, criterion, optimizer, data_augmentation=None):
         # tell to pytorch that we are training the model
         model.train()
 
         metrics = {"loss": 0.0, "biotic_stress_acc": 0.0, "severity_acc": 0.0}
         total = 0
 
-        pbar = tqdm(train_loader)
+        pbar = tqdm(loader)
         for images, labels_dis, labels_sev in pbar:
             # Loading images on gpu
             if torch.cuda.is_available():
@@ -139,21 +175,21 @@ class MultiTaskClassifier(ModelTraining):
 
         for x in metrics:
             if x != "loss":
-                metrics[x] = 100.0 * metrics[x] / len(train_loader.dataset)
+                metrics[x] = 100.0 * metrics[x] / len(loader.dataset)
             else:
-                metrics[x] = metrics[x] / len(train_loader.dataset)
+                metrics[x] = metrics[x] / len(loader.dataset)
             metrics[x] = float(metrics[x])
 
         return metrics
 
-    def validation(self, val_loader, model, criterion):
+    def validation(self, loader, model, criterion):
         # tell to pytorch that we are evaluating the model
         model.eval()
 
         metrics = {"loss": 0.0, "biotic_stress_acc": 0.0, "severity_acc": 0.0, "mean_fs": 0.0}
         total = 0
         with torch.no_grad():
-            pbar = tqdm(val_loader)
+            pbar = tqdm(loader)
             for images, labels_dis, labels_sev in pbar:
                 # Loading images on gpu
                 if torch.cuda.is_available():
@@ -198,9 +234,9 @@ class MultiTaskClassifier(ModelTraining):
 
         for x in metrics:
             if x != "loss":
-                metrics[x] = 100.0 * metrics[x] / len(val_loader.dataset)
+                metrics[x] = 100.0 * metrics[x] / len(loader.dataset)
             else:
-                metrics[x] = metrics[x] / len(val_loader.dataset)
+                metrics[x] = metrics[x] / len(loader.dataset)
             metrics[x] = float(metrics[x])
 
         return metrics
@@ -223,41 +259,45 @@ class MultiTaskClassifier(ModelTraining):
             )
         )
 
-    def run_training(self):
-        print(clf_label(self.opt) + " - training: " + self.opt.experiment_name)
+    def run_training(self, data_loader):
+        print("run multitask training: " + self.experiment_name)
 
         # Dataset
-        train_loader, val_loader, _ = data_loader(self.opt)
+        train_loader, val_loader, _ = data_loader(
+            self.images_dir,
+            self.batch_size,
+            self.balanced_dataset,
+        )
 
         # Model
-        model = cnn_model(self.opt.model, self.opt.pretrained, self.opt.num_classes)
+        model = cnn_model(self.model, self.pretrained, self.num_classes)
 
         # Criterion
         criterion_train = (
             nn.CrossEntropyLoss()
-            if self.opt.data_augmentation != "bc+"
+            if self.data_augmentation != "bc+"
             else torch.nn.KLDivLoss(reduction="batchmean")
         )
         criterion_val = nn.CrossEntropyLoss()
 
         # Optimizer
-        if self.opt.optimizer == "sgd":
+        if self.optimizer == "sgd":
             optimizer = torch.optim.SGD(
-                model.parameters(), lr=0.01, momentum=0.9, weight_decay=self.opt.weight_decay
+                model.parameters(), lr=0.01, momentum=0.9, weight_decay=self.weight_decay
             )
         else:
             optimizer = torch.optim.Adam(
-                model.parameters(), lr=0.001, weight_decay=self.opt.weight_decay
+                model.parameters(), lr=0.001, weight_decay=self.weight_decay
             )
 
         record = {}
-        record["model"] = self.opt.model
-        record["batch_size"] = self.opt.batch_size
-        record["weight_decay"] = self.opt.weight_decay
-        record["optimizer"] = self.opt.optimizer
-        record["pretrained"] = self.opt.pretrained
-        record["data_augmentation"] = self.opt.data_augmentation
-        record["epochs"] = self.opt.epochs
+        record["model"] = self.model
+        record["batch_size"] = self.batch_size
+        record["weight_decay"] = self.weight_decay
+        record["optimizer"] = self.optimizer
+        record["pretrained"] = self.pretrained
+        record["data_augmentation"] = self.data_augmentation
+        record["epochs"] = self.epochs
         record["train_loss"] = []
         record["val_loss"] = []
         record["train_biotic_stress_acc"] = []
@@ -267,23 +307,21 @@ class MultiTaskClassifier(ModelTraining):
 
         best_fs = 0.0
 
-        for epoch in range(self.opt.epochs):
+        for epoch in range(self.epochs):
             # Training
             train_metrics = self.train(
-                train_loader, model, criterion_train, optimizer, self.opt.data_augmentation
+                train_loader, model, criterion_train, optimizer, self.data_augmentation
             )
             self.print_info(
-                data_type="TRAIN", metrics=train_metrics, epoch=epoch, epochs=self.opt.epochs
+                data_type="TRAIN", metrics=train_metrics, epoch=epoch, epochs=self.epochs
             )
 
             # Validation
             val_metrics = self.validation(val_loader, model, criterion_val)
-            self.print_info(
-                data_type="VAL", metrics=val_metrics, epoch=epoch, epochs=self.opt.epochs
-            )
+            self.print_info(data_type="VAL", metrics=val_metrics, epoch=epoch, epochs=self.epochs)
 
             # Adjust learning rate
-            optimizer = self.adjust_learning_rate(optimizer, epoch, self.opt)
+            optimizer = self.adjust_learning_rate(optimizer, self.optimizer, epoch, self.epochs)
 
             # Recording metrics
             record["train_loss"].append(train_metrics["loss"])
@@ -300,20 +338,26 @@ class MultiTaskClassifier(ModelTraining):
                 best_fs = curr_fs
 
                 # Saving model
-                torch.save(model.state_dict(), get_file_path(self.opt, "net_weights.pth"))
+                torch.save(
+                    model.state_dict(), os.path.join(self.results_folder, "net_weights.pth")
+                )
                 print("model saved")
 
             # Saving log
-            with open(get_file_path(self.opt, "logs.json"), "w") as fp:
+            with open(os.path.join(self.results_folder, "logs.json"), "w") as fp:
                 json.dump(record, fp, indent=4, sort_keys=True)
 
-    def run_test(self):
+    def run_test(self, data_loader):
         # Dataset
-        _, _, test_loader = data_loader(self.opt)
+        _, _, test_loader = data_loader(
+            self.images_dir,
+            self.batch_size,
+            self.balanced_dataset,
+        )
 
         # Loading model
-        weights_path = get_file_path(self.opt, "net_weights.pth")
-        model = cnn_model(self.opt.model, self.opt.pretrained, self.opt.num_classes, weights_path)
+        weights_path = os.path.join(self.results_folder, "net_weights.pth")
+        model = cnn_model(self.model, self.pretrained, self.num_classes, weights_path)
 
         # tell to pytorch that we are evaluating the model
         model.eval()
@@ -325,7 +369,7 @@ class MultiTaskClassifier(ModelTraining):
         y_true_sev = np.empty(0)
 
         with torch.no_grad():
-            for images, labels_dis, labels_sev in test_loader:
+            for images, labels_dis, labels_sev in tqdm(test_loader):
                 # Loading images on gpu
                 if torch.cuda.is_available():
                     images, labels_dis, labels_sev = (
@@ -351,31 +395,11 @@ class MultiTaskClassifier(ModelTraining):
                 y_pred_sev = np.concatenate((y_pred_sev, pred.data.cpu().numpy()))
                 y_true_sev = np.concatenate((y_true_sev, labels_sev.data.cpu().numpy()))
 
-        # Biotic stress
-        write_results(
-            y_true=y_true_dis,
-            y_pred=y_pred_dis,
-            cm_target_names=["Healthy", "Leaf miner", "Rust", "Phoma", "Cercospora"],
-            results_path=self.opt.results_path,
-            task_name="biotic_stress",
-            experiment_name=self.opt.experiment_name,
-        )
-
-        # Severity
-        write_results(
-            y_true=y_true_sev,
-            y_pred=y_pred_sev,
-            cm_target_names=["Healthy", "Very low", "Low", "High", "Very high"],
-            results_path=self.opt.results_path,
-            task_name="severity",
-            experiment_name=self.opt.experiment_name,
-        )
-
         return y_true_dis, y_pred_dis, y_true_sev, y_pred_sev
 
     def get_n_params(self):
-        weights_path = get_file_path(self.opt, "net_weights.pth")
-        model = cnn_model(self.opt.model, self.opt.pretrained, (5, 5), weights_path)
+        weights_path = os.path.join(self.results_folder, "net_weights.pth")
+        model = cnn_model(self.model, self.pretrained, (5, 5), weights_path)
         pp = 0
         for p in list(model.parameters()):
             nn = 1
@@ -388,13 +412,42 @@ class MultiTaskClassifier(ModelTraining):
 class SingleTaskClassifier(ModelTraining):
     """Single task classifier."""
 
-    def __init__(self, options, images_dir):
-        self.opt = options
-        self.opt.num_classes = 5
-        self.opt.images_dir = images_dir
-        create_results_folder(self.opt.results_path, self.opt.experiment_name)
+    def __init__(
+        self,
+        images_dir,
+        num_classes,
+        balanced_dataset=False,
+        batch_size=24,
+        epochs=80,
+        model="resnet50",
+        pretrained=True,
+        optimizer="sgd",
+        weight_decay=5e-4,
+        data_augmentation="standard",
+        results_path="results",
+        experiment_name="experiment",
+    ):
+        # Dataset parameters
+        self.num_classes = num_classes
+        self.images_dir = images_dir
+        self.balanced_dataset = balanced_dataset
 
-    def train(self, train_loader, model, criterion, optimizer, data_augmentation=None):
+        # Training parameters
+        self.batch_size = batch_size
+        self.epochs = epochs
+
+        # Model parameters
+        self.optimizer = optimizer
+        self.weight_decay = weight_decay
+        self.model = model
+        self.pretrained = pretrained
+        self.data_augmentation = data_augmentation
+
+        # Results parameters
+        self.experiment_name = experiment_name
+        self.results_folder = create_results_folder(results_path, experiment_name)
+
+    def train(self, loader, model, criterion, optimizer, data_augmentation=None):
         # tell to pytorch that we are training the model
         model.train()
 
@@ -402,7 +455,7 @@ class SingleTaskClassifier(ModelTraining):
         correct = 0
         total = 0
 
-        pbar = tqdm(train_loader)
+        pbar = tqdm(loader)
         for images, labels in pbar:
             # Loading images on gpu
             if torch.cuda.is_available():
@@ -460,11 +513,11 @@ class SingleTaskClassifier(ModelTraining):
             # Update progress bar
             pbar.set_description("[ACC: %.2f]" % metrics["acc"])
 
-        metrics["loss"] = float(metrics["loss"] / len(train_loader.dataset))
+        metrics["loss"] = float(metrics["loss"] / len(loader.dataset))
 
         return metrics
 
-    def validation(self, val_loader, model, criterion):
+    def validation(self, loader, model, criterion):
         # tell to pytorch that we are evaluating the model
         model.eval()
 
@@ -474,7 +527,7 @@ class SingleTaskClassifier(ModelTraining):
         total = 0
 
         with torch.no_grad():
-            pbar = tqdm(val_loader)
+            pbar = tqdm(loader)
             for images, labels in pbar:
                 # Loading images on gpu
                 if torch.cuda.is_available():
@@ -506,7 +559,7 @@ class SingleTaskClassifier(ModelTraining):
                 # Update progress bar
                 pbar.set_description("[ACC: %.2f]" % metrics["acc"])
 
-        metrics["loss"] = float(metrics["loss"] / len(val_loader.dataset))
+        metrics["loss"] = float(metrics["loss"] / len(loader.dataset))
 
         return metrics
 
@@ -521,41 +574,43 @@ class SingleTaskClassifier(ModelTraining):
             % (epoch + 1, epochs, data_type, metrics["loss"], metrics["acc"])
         )
 
-    def run_training(self):
-        print(clf_label(self.opt) + " - training: " + self.opt.experiment_name)
+    def run_training(self, data_loader=images_loader):
+        print("run single task training: " + self.experiment_name)
 
         # Data
-        train_loader, val_loader, _ = data_loader(self.opt)
+        train_loader, val_loader, _ = data_loader(
+            self.images_dir, self.batch_size, self.balanced_dataset
+        )
 
         # Model
-        model = cnn_model(self.opt.model, self.opt.pretrained, self.opt.num_classes)
+        model = cnn_model(self.model, self.pretrained, self.num_classes)
 
         # Criterion
         criterion_train = (
             nn.CrossEntropyLoss()
-            if self.opt.data_augmentation != "bc+"
+            if self.data_augmentation != "bc+"
             else torch.nn.KLDivLoss(reduction="batchmean")
         )
         criterion_val = nn.CrossEntropyLoss()
 
         # Optimizer
-        if self.opt.optimizer == "sgd":
+        if self.optimizer == "sgd":
             optimizer = torch.optim.SGD(
-                model.parameters(), lr=0.01, momentum=0.9, weight_decay=self.opt.weight_decay
+                model.parameters(), lr=0.01, momentum=0.9, weight_decay=self.weight_decay
             )
         else:
             optimizer = torch.optim.Adam(
-                model.parameters(), lr=0.001, weight_decay=self.opt.weight_decay
+                model.parameters(), lr=0.001, weight_decay=self.weight_decay
             )
 
         record = {}
-        record["model"] = self.opt.model
-        record["batch_size"] = self.opt.batch_size
-        record["weight_decay"] = self.opt.weight_decay
-        record["optimizer"] = self.opt.optimizer
-        record["pretrained"] = self.opt.pretrained
-        record["data_augmentation"] = self.opt.data_augmentation
-        record["epochs"] = self.opt.epochs
+        record["model"] = self.model
+        record["batch_size"] = self.batch_size
+        record["weight_decay"] = self.weight_decay
+        record["optimizer"] = self.optimizer
+        record["pretrained"] = self.pretrained
+        record["data_augmentation"] = self.data_augmentation
+        record["epochs"] = self.epochs
         record["train_loss"] = []
         record["val_loss"] = []
         record["train_acc"] = []
@@ -563,23 +618,21 @@ class SingleTaskClassifier(ModelTraining):
 
         best_fs = 0.0
 
-        for epoch in range(self.opt.epochs):
+        for epoch in range(self.epochs):
             # Training
             train_metrics = self.train(
-                train_loader, model, criterion_train, optimizer, self.opt.data_augmentation
+                train_loader, model, criterion_train, optimizer, self.data_augmentation
             )
             self.print_info(
-                data_type="TRAIN", metrics=train_metrics, epoch=epoch, epochs=self.opt.epochs
+                data_type="TRAIN", metrics=train_metrics, epoch=epoch, epochs=self.epochs
             )
 
             # Validation
             val_metrics = self.validation(val_loader, model, criterion_val)
-            self.print_info(
-                data_type="VAL", metrics=val_metrics, epoch=epoch, epochs=self.opt.epochs
-            )
+            self.print_info(data_type="VAL", metrics=val_metrics, epoch=epoch, epochs=self.epochs)
 
             # Adjust learning rate
-            optimizer = self.adjust_learning_rate(optimizer, epoch, self.opt)
+            optimizer = self.adjust_learning_rate(optimizer, self.optimizer, epoch, self.epochs)
 
             # Recording metrics
             record["train_loss"].append(train_metrics["loss"])
@@ -596,21 +649,21 @@ class SingleTaskClassifier(ModelTraining):
                 # Saving model
                 torch.save(
                     model.state_dict(),
-                    get_file_path(self.opt, "net_weights.pth"),
+                    os.path.join(self.results_folder, "net_weights.pth"),
                 )
                 print("model saved")
 
             # Saving log
-            with open(get_file_path(self.opt, "logs.json"), "w") as fp:
+            with open(os.path.join(self.results_folder, "logs.json"), "w") as fp:
                 json.dump(record, fp, indent=4, sort_keys=True)
 
-    def run_test(self):
+    def run_test(self, data_loader=images_loader):
         # Dataset
-        _, _, test_loader = data_loader(self.opt)
+        _, _, test_loader = data_loader(self.images_dir, self.batch_size, self.balanced_dataset)
 
         # Loading model
-        weights_path = get_file_path(self.opt, "net_weights.pth")
-        model = cnn_model(self.opt.model, self.opt.pretrained, self.opt.num_classes, weights_path)
+        weights_path = os.path.join(self.results_folder, "net_weights.pth")
+        model = cnn_model(self.model, self.pretrained, self.num_classes, weights_path)
 
         # tell to pytorch that we are evaluating the model
         model.eval()
@@ -619,7 +672,7 @@ class SingleTaskClassifier(ModelTraining):
         y_true = np.empty(0)
 
         with torch.no_grad():
-            for images, labels in test_loader:
+            for images, labels in tqdm(test_loader):
                 # Loading images on gpu
                 if torch.cuda.is_available():
                     images, labels = images.cuda(), labels.cuda()
@@ -632,28 +685,11 @@ class SingleTaskClassifier(ModelTraining):
                 y_pred = np.concatenate((y_pred, pred.data.cpu().numpy()))
                 y_true = np.concatenate((y_true, labels.data.cpu().numpy()))
 
-        # Biotic stress labels
-        if self.opt.model_task == Tasks.SEVERITY:
-            labels = ["Healthy", "Very low", "Low", "High", "Very high"]
-            task_name = "severity"
-        else:
-            labels = ["Healhty", "Leaf miner", "Rust", "Phoma", "Cercospora"]
-            task_name = "biotic_stress"
-
-        write_results(
-            y_true=y_true,
-            y_pred=y_pred,
-            cm_target_names=labels,
-            results_path=self.opt.results_path,
-            task_name=task_name,
-            experiment_name=self.opt.experiment_name,
-        )
-
         return y_true, y_pred
 
     def get_n_params(self):
-        weights_path = get_file_path(self.opt, "net_weights.pth")
-        model = cnn_model(self.opt.model, self.opt.pretrained, 5, weights_path)
+        weights_path = os.path.join(self.results_folder, "net_weights.pth")
+        model = cnn_model(self.model, self.pretrained, 5, weights_path)
         pp = 0
         for p in list(model.parameters()):
             nn = 1

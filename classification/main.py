@@ -1,7 +1,10 @@
 import sys
 import warnings
 import argparse
+from functools import partial
 from classifiers import SingleTaskClassifier, MultiTaskClassifier
+from loaders import coffeeleaves_loader, images_loader
+from results import save_results
 from utils.enums import Tasks
 
 if not sys.warnoptions:
@@ -39,10 +42,8 @@ if __name__ == "__main__":
         help="Defines whether or not to use a pre-trained model.",
         default=True,
     )
-
     # this is experimental, I do not recommend using it.
     parser.add_argument("--balanced_dataset", type=bool, default=False)
-
     parser.add_argument(
         "--csv_file",
         type=str,
@@ -106,19 +107,57 @@ if __name__ == "__main__":
 
     # Initialize the classifier
     if options.model_task == Tasks.MULTITASK:
-        Clf = MultiTaskClassifier(options, images_dir=f"dataset/{options.dataset}")
+        Clf = MultiTaskClassifier(
+            images_dir=f"dataset/{options.dataset}",
+            csv_file=options.csv_file,
+            fold=options.fold,
+            num_classes=(5, 5),
+            model_task=options.model_task,
+            balanced_dataset=options.balanced_dataset,
+            batch_size=options.batch_size,
+            epochs=options.epochs,
+            model=options.model,
+            pretrained=options.pretrained,
+            optimizer=options.optimizer,
+            weight_decay=options.weight_decay,
+            data_augmentation=options.data_augmentation,
+            results_path=options.results_path,
+            experiment_name=options.experiment_name,
+        )
     else:
-        Clf = SingleTaskClassifier(options, images_dir=f"dataset/{options.dataset}")
+        Clf = SingleTaskClassifier(
+            images_dir=f"dataset/{options.dataset}",
+            num_classes=5,
+            balanced_dataset=options.balanced_dataset,
+            batch_size=options.batch_size,
+            epochs=options.epochs,
+            model=options.model,
+            pretrained=options.pretrained,
+            optimizer=options.optimizer,
+            weight_decay=options.weight_decay,
+            data_augmentation=options.data_augmentation,
+            results_path=options.results_path,
+            experiment_name=options.experiment_name,
+        )
+
+    # Initialize the data loader
+    if options.dataset == "leaf":
+        loader = partial(
+            coffeeleaves_loader,
+            csv_file=options.csv_file,
+            fold=options.fold,
+            model_task=options.model_task,
+        )
+    else:
+        loader = images_loader
 
     # Run the classifier
     if options.train:
-        Clf.run_training()
+        Clf.run_training(loader)
 
     elif options.test:
-        if options.model_task == Tasks.MULTITASK:
-            y_true_dis, y_pred_dis, y_true_sev, y_pred_sev = Clf.run_test()
-        else:
-            y_true, y_pred = Clf.run_test()
+        out = Clf.run_test(loader)
+        save_results(out, options.model_task, options.results_path, options.experiment_name)
 
     else:
         raise ValueError("You must specify wheter you want to train or test a model.")
