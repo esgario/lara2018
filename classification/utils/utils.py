@@ -4,8 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from bokeh.plotting import figure
-from bokeh.io import show
 from sklearn.metrics import confusion_matrix
 
 

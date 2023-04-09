@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 
 import utils.augmentations as aug
-from utils.metric import scores, eval_metric
+from utils.metric import eval_metric
 from utils.plots import scatter_plot
 from utils.utils import get_file_path, create_results_folder
 
