@@ -271,6 +271,7 @@ class MultiTaskClassifier(ModelTraining):
 
         # Model
         model = cnn_model(self.model, self.pretrained, self.num_classes)
+        print(model)
 
         # Criterion
         criterion_train = (
@@ -584,6 +585,7 @@ class SingleTaskClassifier(ModelTraining):
 
         # Model
         model = cnn_model(self.model, self.pretrained, self.num_classes)
+        print(model)
 
         # Criterion
         criterion_train = (
